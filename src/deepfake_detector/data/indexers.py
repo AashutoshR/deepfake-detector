@@ -1,0 +1,120 @@
+"""Turn each dataset's folder layout into a list of VideoRecord (one per video).
+
+Expected layouts (as shipped by each dataset's download):
+
+FaceForensics++ (root = data/raw/ffpp)
+    original_sequences/youtube/<comp>/videos/000.mp4
+    manipulated_sequences/<Method>/<comp>/videos/000_003.mp4
+    splits/train.json, val.json, test.json   (official split pairs from the FF++ GitHub repo)
+
+Celeb-DF v2 (root = data/raw/celebdf_v2)
+    Celeb-real/id0_0000.mp4
+    Celeb-synthesis/id0_id16_0000.mp4
+    YouTube-real/00000.mp4
+    List_of_testing_videos.txt
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+FFPP_METHODS = ("Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures")
+REAL = 0
+FAKE = 1
+
+
+@dataclass(frozen=True)
+class VideoRecord:
+    path: Path
+    video_id: str  # unique within the dataset, e.g. "Deepfakes/000_003"
+    label: int  # 0 real, 1 fake
+    method: str  # "real" or the fake-making method
+    dataset: str
+    split: str  # train | val | test
+    compression: str  # c23, c40, or "na"
+    persons: tuple[str, ...] = field(default_factory=tuple)  # identities shown, for leak checks
+
+
+def _ffpp_split_map(splits_dir: Path) -> dict[str, str]:
+    """Map each FF++ source id ("000") to its official split."""
+    out: dict[str, str] = {}
+    for split in ("train", "val", "test"):
+        pairs = json.loads((splits_dir / f"{split}.json").read_text())
+        for a, b in pairs:
+            out[a] = split
+            out[b] = split
+    return out
+
+
+def index_ffpp(
+    root: str | Path,
+    compressions: Iterable[str] = ("c23",),
+    methods: Iterable[str] = FFPP_METHODS,
+    splits: Iterable[str] | None = None,
+) -> list[VideoRecord]:
+    """Index FaceForensics++ with the official 720 / 140 / 140 split."""
+    root = Path(root)
+    split_of = _ffpp_split_map(root / "splits")
+    keep = set(splits) if splits is not None else None
+    records: list[VideoRecord] = []
+    for comp in compressions:
+        real_dir = root / "original_sequences" / "youtube" / comp / "videos"
+        for p in sorted(real_dir.glob("*.mp4")):
+            sid = p.stem
+            split = split_of.get(sid)
+            if split is None or (keep is not None and split not in keep):
+                continue
+            records.append(
+                VideoRecord(p, f"real/{sid}", REAL, "real", "ffpp", split, comp, (f"ffpp:{sid}",))
+            )
+        for method in methods:
+            fake_dir = root / "manipulated_sequences" / method / comp / "videos"
+            for p in sorted(fake_dir.glob("*.mp4")):
+                target, source = p.stem.split("_")
+                split = split_of.get(target)
+                if split is None or (keep is not None and split not in keep):
+                    continue
+                persons = (f"ffpp:{target}", f"ffpp:{source}")
+                records.append(
+                    VideoRecord(p, f"{method}/{p.stem}", FAKE, method, "ffpp", split, comp, persons)
+                )
+    return records
+
+
+def index_celebdf(root: str | Path, only_test: bool = True) -> list[VideoRecord]:
+    """Index Celeb-DF v2. Labels come from the folder name, not the list file's numbers."""
+    root = Path(root)
+    test_list = root / "List_of_testing_videos.txt"
+    test_paths = {
+        line.split(maxsplit=1)[1].strip().replace("\\", "/")
+        for line in test_list.read_text().splitlines()
+        if line.strip()
+    }
+    folders = {"Celeb-real": REAL, "YouTube-real": REAL, "Celeb-synthesis": FAKE}
+    records: list[VideoRecord] = []
+    for folder, label in folders.items():
+        for p in sorted((root / folder).glob("*.mp4")):
+            rel = f"{folder}/{p.name}"
+            split = "test" if rel in test_paths else "train"
+            if only_test and split != "test":
+                continue
+            if folder == "YouTube-real":
+                persons: tuple[str, ...] = (f"celebdf:yt{p.stem}",)
+            else:
+                persons = tuple(f"celebdf:{t}" for t in p.stem.split("_") if t.startswith("id"))
+            method = "real" if label == REAL else "celebdf_synthesis"
+            records.append(
+                VideoRecord(
+                    p, rel.removesuffix(".mp4"), label, method, "celebdf_v2", split, "na", persons
+                )
+            )
+    return records
+
+
+INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
+    "ffpp": index_ffpp,
+    "celebdf_v2": index_celebdf,
+}

@@ -52,6 +52,22 @@ No dataset can be downloaded freely; each requires accepting its license first. 
 `data/`, which git ignores. No dataset file is ever committed or re-shared. See
 [docs/datasets.md](docs/datasets.md) for access steps and license terms.
 
+## Preprocessing
+
+Extracts 32 evenly spaced frames per video, detects the main face with the SFD detector, saves
+224 x 224 crops at 1.3x the face box, and writes a Parquet manifest. Each video gets its own
+shard, so a stopped run resumes where it left off. Videos with no face are listed in
+`skipped.parquet` with a reason, never dropped silently.
+
+```bash
+python -m deepfake_detector.data.preprocess --dataset ffpp --raw data/raw/ffpp --out data
+python -m deepfake_detector.data.preprocess --dataset ffpp --raw data/raw/ffpp --out data --compression c40 --splits test
+python -m deepfake_detector.data.preprocess --dataset celebdf_v2 --raw data/raw/celebdf_v2 --out data
+```
+
+Add `--limit 20` for a quick trial run. The manifest is checked automatically so no video or
+person appears in two splits.
+
 ## Layout
 
 ```
