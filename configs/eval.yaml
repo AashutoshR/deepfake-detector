@@ -1,0 +1,22 @@
+# Evaluation (FR-E1 to FR-E9)
+test_sets: [ffpp_c23, ffpp_c40, celebdf_v2, dfdc, deeperforensics, wilddeepfake]
+video_score: mean            # mean | median | topk (FR-E3, ablation A8)
+topk: 8
+metrics: [frame_auc, video_auc, eer, accuracy, log_loss, ece]
+ece_bins: 15
+bootstrap:
+  n: 1000                    # 95% CI (FR-E7)
+  ci: 0.95
+
+robustness:                  # FR-E6
+  jpeg_quality: [90, 70, 50, 30]
+  blur_sigma: [0.5, 1.0, 2.0, 3.0]
+  downscale: [0.75, 0.5, 0.25]
+  noise_std: [0.01, 0.03, 0.05]
+  contrast: [0.8, 0.6, 0.4]
+
+bands:                       # cut-offs set on validation data (FR-I2)
+  likely_real_below: null
+  likely_fake_above: null
+
+out_dir: outputs/eval

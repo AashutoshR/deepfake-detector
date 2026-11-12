@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepfake-detector"
+version = "0.1.0"
+description = "Cross-dataset deepfake detection with a Vision Transformer trained on FaceForensics++"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10,<3.13"
+
+[project.scripts]
+predict = "deepfake_detector.predict:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "N"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+disallow_untyped_defs = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=deepfake_detector --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/deepfake_detector"]
+omit = ["src/deepfake_detector/train.py"]
+
+[tool.coverage.report]
+# NFR-9 target is 70. Raise from 0 once the data pipeline lands.
+fail_under = 0

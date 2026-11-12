@@ -1,0 +1,34 @@
+# Training (FR-T1 to FR-T9). Sized for an 8 GB laptop RTX 4060 (NFR-1).
+seed: 0
+epochs: 20
+batch_size: 16
+grad_accum: 4                # effective batch 64
+precision: bf16
+grad_checkpointing: true
+
+optimizer:
+  name: adamw
+  lr: 1.0e-4
+  weight_decay: 0.05
+
+scheduler:
+  name: cosine
+  warmup_epochs: 1
+
+balance: weighted_sampler    # FF++ has 4 fakes per real
+
+augment:
+  preset: full               # basic | full (ablation A4)
+
+sbi:
+  enabled: true              # self-blended images (FR-T4, ablation A3)
+  prob: 0.5
+
+leave_out_method: null       # e.g. Deepfakes for M5 (FR-T5)
+
+checkpoint:
+  dir: checkpoints
+  every_minutes: 30          # laptop: short intervals so throttling or sleep costs little
+  select_on: val_auc         # FF++ validation only (FR-T6)
+
+log_dir: runs                # TensorBoard (FR-T7)

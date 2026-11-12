@@ -1,0 +1,43 @@
+# Datasets, face crops, manifests: never committed (licensed data).
+# Leading slash: only the top-level data/, not src/deepfake_detector/data/.
+/data/
+
+# Training outputs
+runs/
+checkpoints/
+outputs/
+multirun/
+lightning_logs/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Demo uploads (deleted after each prediction, ignored just in case)
+uploads/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Tools
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ipynb_checkpoints/
+
+# Editors and OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

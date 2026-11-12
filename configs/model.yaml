@@ -1,0 +1,19 @@
+# Model (FR-M1 to FR-M6)
+name: vit_base_patch16_224
+pretrained: imagenet21k      # imagenet21k | clip | dinov2 (ablation A1)
+pooling: cls                 # cls | mean_patch (ablation A5)
+num_classes: 1               # real vs fake logit
+
+finetune:
+  mode: lora                 # lora | full | last_layer (ablation A2)
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.1
+    target_modules: [qkv]
+
+method_head:
+  enabled: false             # predict the fake method (FR-M5, ablation A6)
+
+freq_branch:
+  enabled: false             # frequency-domain side branch (FR-M6, could)
