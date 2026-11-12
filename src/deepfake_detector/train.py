@@ -37,7 +37,7 @@ from torch.utils.tensorboard import SummaryWriter
 from deepfake_detector.data.augment import TrainTransform
 from deepfake_detector.data.datasets import FaceCropDataset, load_manifest
 from deepfake_detector.data.extract import sample_indices
-from deepfake_detector.evaluate import predict_frames
+from deepfake_detector.inference import predict_frames
 from deepfake_detector.metrics import auc_per_method, summarize
 from deepfake_detector.models import build_model
 from deepfake_detector.models.common import IGNORE_INDEX, count_parameters, method_target

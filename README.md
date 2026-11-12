@@ -82,6 +82,23 @@ Each run folder in `runs/` holds the merged config, library versions and git com
 logs, `metrics.jsonl`, `last.pt` (saved every 30 minutes and every epoch) and `best.pt` (best
 FF++ validation video AUC). Test sets are never used during training.
 
+## Calibration and testing
+
+```bash
+python -m deepfake_detector.calibrate --checkpoint runs/<run>/best.pt
+python -m deepfake_detector.evaluate --checkpoint runs/<run>/best.pt
+python -m deepfake_detector.evaluate --checkpoint runs/<run>/best.pt --robustness
+```
+
+Calibration fits one temperature and the three band cut-offs on FF++ validation only, and saves
+`calibration.json` next to the checkpoint. Testing picks it up automatically and writes to
+`outputs/eval/<run>/<checkpoint>/`: a results table (`results.md`, `results.json`) with video
+AUC and its 95% bootstrap confidence interval, frame AUC, EER, accuracy, log loss and ECE before
+and after calibration for every test set, plus ROC curves, calibration charts, per-method AUC
+on FF++, every frame score, and with `--robustness` the AUC under JPEG, blur, downscaling,
+noise and contrast loss at rising strength. Test sets not downloaded yet show as "not
+available".
+
 ## GPU budget (RTX 4060 Laptop, 8 GB)
 
 Measured with `python scripts/bench_gpu.py` (batch 16, bf16, 224 x 224):

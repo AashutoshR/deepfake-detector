@@ -19,7 +19,7 @@ def build_dataset(root: Path, size: int = 32) -> None:
     shards = root / "manifests" / "ffpp" / "shards"
     shards.mkdir(parents=True)
     n = 0
-    for split in ("train", "val"):
+    for split in ("train", "val", "test"):
         for label, method in [
             (REAL, "real"),
             (FAKE, "Deepfakes"),

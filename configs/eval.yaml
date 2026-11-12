@@ -1,22 +1,24 @@
-# Evaluation (FR-E1 to FR-E9)
-test_sets: [ffpp_c23, ffpp_c40, celebdf_v2, dfdc, deeperforensics, wilddeepfake]
+# Evaluation (FR-E1 to FR-E9). Test sets whose manifest does not exist yet are listed as
+# "not available" instead of failing.
+test_sets: [ffpp_c23, ffpp_c40, celebdf_v2, dfdc, deeperforensics, wilddeepfake, df40]
 video_score: mean            # mean | median | topk (FR-E3, ablation A8)
 topk: 8
-metrics: [frame_auc, video_auc, eer, accuracy, log_loss, ece]
 ece_bins: 15
-bootstrap:
-  n: 1000                    # 95% CI (FR-E7)
-  ci: 0.95
+batch_size: 64
+num_workers: 4
 
-robustness:                  # FR-E6
-  jpeg_quality: [90, 70, 50, 30]
-  blur_sigma: [0.5, 1.0, 2.0, 3.0]
-  downscale: [0.75, 0.5, 0.25]
-  noise_std: [0.01, 0.03, 0.05]
-  contrast: [0.8, 0.6, 0.4]
+bootstrap:                   # 95% CI on video AUC (FR-E7)
+  n: 1000
+  seed: 0
 
-bands:                       # cut-offs set on validation data (FR-I2)
-  likely_real_below: null
-  likely_fake_above: null
+robustness:                  # FR-E6, run with --robustness
+  test_set: ffpp_c23
+  frames_per_video: 8
+  sweeps:
+    jpeg: [90, 70, 50, 30]
+    blur: [0.5, 1.0, 2.0, 3.0]
+    downscale: [0.75, 0.5, 0.25]
+    noise: [0.01, 0.03, 0.05]
+    contrast: [0.8, 0.6, 0.4]
 
 out_dir: outputs/eval
