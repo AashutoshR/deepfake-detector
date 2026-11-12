@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepfake Detector</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e3e3de;
+    --accent: #3a5bd9; --dash: #c4c4bc; --real: #2f8a57; --unsure: #b7791f; --fake: #c2412d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --card: #1e1e1c; --text: #ececea; --muted: #a0a09a; --line: #333330;
+      --accent: #7d97ff; --dash: #55554f; --real: #5cc48b; --unsure: #e0a94a; --fake: #ff7a63;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .drop {
+    display: block; border: 2px dashed var(--dash); border-radius: 10px; padding: 32px 16px; text-align: center;
+    cursor: pointer; transition: border-color .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); }
+  .drop input { display: none; }
+  .drop strong { color: var(--accent); }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .status { margin-top: 12px; color: var(--muted); min-height: 1.5em; }
+  .error { color: var(--fake); }
+  .result { display: none; }
+  .top { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .score { flex: 1 1 260px; }
+  .big { font-size: 44px; font-weight: 650; line-height: 1.1; }
+  .band { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-weight: 600; color: #fff; }
+  .band.real { background: var(--real); } .band.uncertain { background: var(--unsure); } .band.fake { background: var(--fake); }
+  .scale { position: relative; height: 10px; border-radius: 5px; margin: 18px 0 6px; overflow: hidden; display: flex; }
+  .scale div { height: 100%; }
+  .marker { position: relative; height: 0; }
+  .marker span { position: absolute; top: -20px; width: 2px; height: 14px; background: var(--text); transform: translateX(-1px); }
+  .ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+  .heat { flex: 0 0 auto; text-align: center; }
+  .heat img { width: 200px; height: 200px; border-radius: 8px; display: block; }
+  .heat p { color: var(--muted); font-size: 12px; margin: 6px 0 0; max-width: 200px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  svg { width: 100%; height: auto; display: block; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .note { border-left: 3px solid var(--unsure); padding: 8px 12px; background: var(--card); border-radius: 0 8px 8px 0; color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Deepfake Detector</h1>
+  <p class="sub">Upload a face video or image to get an estimated chance that it was manipulated. Runs only on this computer.</p>
+
+  <div class="card">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="video/*,image/*">
+      <div><strong>Choose a file</strong> or drop it here</div>
+      <div class="hint">Video (mp4, mov, avi, mkv, webm) or image (jpg, png, webp), up to 200 MB. Deleted right after scoring.</div>
+    </label>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="card top">
+      <div class="score">
+        <div class="hint">Estimated chance of manipulation</div>
+        <div class="big" id="prob">-</div>
+        <div class="band" id="band">-</div>
+        <div class="scale" id="scale"></div>
+        <div class="marker"><span id="marker"></span></div>
+        <div class="ends"><span>0% real</span><span>100% manipulated</span></div>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="heat" id="heatwrap">
+        <img id="heat" alt="Attention heatmap over the most suspicious face crop">
+        <p id="heatcap">Where the model looked on the most suspicious frame. A hint, not evidence.</p>
+      </div>
+    </div>
+
+    <div class="card" id="framecard">
+      <h2>Score per frame</h2>
+      <svg id="chart" viewBox="0 0 800 220" role="img" aria-label="Manipulation score for each analysed frame"></svg>
+    </div>
+
+    <p class="note" id="note"></p>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const pct = (x) => (x * 100).toFixed(1) + "%";
+const drop = $("drop"), input = $("file");
+
+["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (ev) => { if (ev.dataTransfer.files[0]) send(ev.dataTransfer.files[0]); });
+input.addEventListener("change", () => { if (input.files[0]) send(input.files[0]); });
+
+async function send(file) {
+  $("result").style.display = "none";
+  $("status").className = "status";
+  $("status").textContent = "Finding faces and scoring frames...";
+  const body = new FormData();
+  body.append("file", file);
+  try {
+    const r = await fetch("/predict", { method: "POST", body });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "Request failed");
+    show(data);
+  } catch (e) {
+    $("status").className = "status error";
+    $("status").textContent = e.message;
+  } finally {
+    input.value = "";
+  }
+}
+
+function show(d) {
+  $("note").textContent = d.note;
+  if (d.status === "no_face") {
+    $("status").className = "status error";
+    $("status").textContent = `No face found in ${d.frames_read} frame(s), so there is nothing to score.`;
+    return;
+  }
+  $("status").textContent = "";
+  $("prob").textContent = pct(d.probability);
+  const cls = { "likely real": "real", "uncertain": "uncertain", "likely manipulated": "fake" }[d.band];
+  $("band").className = "band " + cls;
+  $("band").textContent = d.band[0].toUpperCase() + d.band.slice(1);
+
+  const lo = d.cutoffs.likely_real_below, hi = d.cutoffs.likely_fake_above;
+  $("scale").innerHTML =
+    `<div style="width:${lo * 100}%;background:var(--real)"></div>` +
+    `<div style="width:${(hi - lo) * 100}%;background:var(--unsure)"></div>` +
+    `<div style="width:${(1 - hi) * 100}%;background:var(--fake)"></div>`;
+  $("marker").style.left = (d.probability * 100) + "%";
+
+  let meta = `Faces found in ${d.faces_found} of ${d.frames_read} frame(s) · ${(d.elapsed_ms / 1000).toFixed(1)} s · model ${d.model}`;
+  if (!d.calibrated) meta += " · uncalibrated";
+  $("meta").textContent = meta;
+
+  if (d.heatmap_png_base64) {
+    $("heat").src = "data:image/png;base64," + d.heatmap_png_base64;
+    $("heatcap").textContent = `Where the model looked on frame ${d.heatmap_frame}, the most suspicious one. A hint, not evidence.`;
+    $("heatwrap").style.display = "";
+  } else {
+    $("heatwrap").style.display = "none";
+  }
+  $("framecard").style.display = d.frame_scores.length > 1 ? "" : "none";
+  chart(d.frames, d.frame_scores, lo, hi);
+  $("result").style.display = "block";
+}
+
+function chart(frames, scores, lo, hi) {
+  const W = 800, H = 220, L = 40, R = 10, T = 10, B = 30;
+  const n = scores.length;
+  const x = (i) => L + (n > 1 ? (i / (n - 1)) * (W - L - R) : (W - L - R) / 2);
+  const y = (v) => T + (1 - v) * (H - T - B);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  let s = "";
+  [[0, lo, "--real"], [lo, hi, "--unsure"], [hi, 1, "--fake"]].forEach(([a, b, c]) => {
+    s += `<rect x="${L}" y="${y(b)}" width="${W - L - R}" height="${y(a) - y(b)}" fill="${css(c)}" opacity="0.10"/>`;
+  });
+  [0, 0.5, 1].forEach((v) => {
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${css("--line")}"/>`;
+    s += `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="${css("--muted")}">${v * 100}%</text>`;
+  });
+  const pts = scores.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  s += `<polyline points="${pts}" fill="none" stroke="${css("--accent")}" stroke-width="2"/>`;
+  scores.forEach((v, i) => { s += `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${css("--accent")}"><title>frame ${frames[i]}: ${pct(v)}</title></circle>`; });
+  s += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" font-size="11" fill="${css("--muted")}">frames analysed (in video order)</text>`;
+  $("chart").innerHTML = s;
+}
+</script>
+</body>
+</html>

@@ -38,10 +38,14 @@ def test_fit_bands() -> None:
     lo, hi = fit_bands(p, y)
     assert lo < hi
     assert np.mean(p[y == 1] < lo) <= 0.05 and np.mean(p[y == 0] > hi) <= 0.05
-    # Separable classes: the cut-offs meet.
+    # Separable classes: the uncertain band keeps its minimum width around the middle.
     p = np.concatenate([np.linspace(0.0, 0.3, 100), np.linspace(0.7, 1.0, 100)])
     lo, hi = fit_bands(p, y)
-    assert lo == hi and 0.3 < lo < 0.7
+    assert hi - lo == pytest.approx(0.2) and (lo + hi) / 2 == pytest.approx(0.5, abs=0.01)
+    # Near an edge the band is shifted inward rather than cut off.
+    p = np.concatenate([np.full(100, 0.0), np.full(100, 0.02)])
+    lo, hi = fit_bands(p, y)
+    assert lo == pytest.approx(0.0) and hi == pytest.approx(0.2)
 
 
 def test_calibrate_frames_reduces_ece_for_overconfident_model() -> None:

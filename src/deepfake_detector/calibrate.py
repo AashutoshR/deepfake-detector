@@ -68,17 +68,22 @@ def fit_temperature(logits: np.ndarray, labels: np.ndarray, max_iter: int = 200)
 
 
 def fit_bands(
-    video_probs: np.ndarray, labels: np.ndarray, max_error: float = 0.05
+    video_probs: np.ndarray, labels: np.ndarray, max_error: float = 0.05, min_width: float = 0.2
 ) -> tuple[float, float]:
     """Cut-offs so that, on validation, at most `max_error` of fakes land in "likely real" and
     at most `max_error` of reals land in "likely manipulated". Everything between is
-    "uncertain". If the classes separate cleanly, both cut-offs meet in the middle."""
+    "uncertain".
+
+    The uncertain band is never narrower than `min_width`: validation data that separates
+    cleanly would otherwise squeeze it to nothing, and a score near the middle would then get a
+    confident label (S-4). Unseen datasets are rarely as clean as FF++ validation.
+    """
     p, y = np.asarray(video_probs, float), np.asarray(labels, int)
     real_below = float(np.quantile(p[y == 1], max_error))
     fake_above = float(np.quantile(p[y == 0], 1 - max_error))
-    if real_below > fake_above:
-        mid = (real_below + fake_above) / 2
-        real_below = fake_above = mid
+    if fake_above - real_below < min_width:
+        mid = float(np.clip((real_below + fake_above) / 2, min_width / 2, 1 - min_width / 2))
+        real_below, fake_above = mid - min_width / 2, mid + min_width / 2
     return real_below, fake_above
 
 

@@ -99,6 +99,30 @@ on FF++, every frame score, and with `--robustness` the AUC under JPEG, blur, do
 noise and contrast loss at rising strength. Test sets not downloaded yet show as "not
 available".
 
+## Predict and local demo
+
+```bash
+predict --input clip.mp4 --checkpoint runs/<run>/best.pt
+predict --input face.jpg --checkpoint runs/<run>/best.pt --heatmap heat.png
+```
+
+Prints JSON with the calibrated probability, one of three bands (likely real, uncertain,
+likely manipulated), per-frame scores and a note that the score is an estimate, not proof.
+The uncertain band is always at least 20 points wide, even when validation data separates
+cleanly, so a score near the middle never gets a confident label.
+
+The demo page runs on this computer only:
+
+```bash
+set DFD_CHECKPOINT=runs\<run>\best.pt
+uvicorn api.server:app --host 127.0.0.1 --port 8000
+```
+
+Open http://127.0.0.1:8000, then drop in a video or image. It shows the score, band, a score
+for every frame, and an attention heatmap on the most suspicious face. Each upload is deleted
+straight after scoring, and nothing about it is stored or logged. Without a GPU it runs on the
+CPU, more slowly.
+
 ## GPU budget (RTX 4060 Laptop, 8 GB)
 
 Measured with `python scripts/bench_gpu.py` (batch 16, bf16, 224 x 224):
