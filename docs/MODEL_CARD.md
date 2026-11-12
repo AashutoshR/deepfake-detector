@@ -112,8 +112,16 @@ calibration for each test set above before trusting the bands on a new kind of v
 
 ## Fairness (S-5)
 
-_To be filled: AUC and false-positive rate per demographic group where published labels exist,
-with every gap above 5 AUC points flagged and discussed._
+Results per demographic group use published labels only; this project never infers anyone's
+demographics. A false alarm (a real video put in the likely-manipulated band) is the most
+harmful error for the person shown, so it is reported per group alongside AUC.
+
+<!-- auto:fairness:start -->
+_Filled by scripts/release.py from fairness.json._
+<!-- auto:fairness:end -->
+
+_To be filled: what the groups show, why any flagged gap (above 5 AUC points) may arise, and
+what a user should keep in mind._
 
 ## Failure cases
 

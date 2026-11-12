@@ -186,8 +186,18 @@ def fill_card(
     calibration: dict[str, Any],
     hashes: dict[str, str],
     m5: dict[str, float] | None = None,
+    fairness: dict[str, Any] | None = None,
 ) -> str:
     text = fill_block(template, "results", _results_table(results))
+    if "<!-- auto:fairness:start -->" in text:
+        from deepfake_detector.fairness import fairness_markdown
+
+        body = (
+            fairness_markdown(fairness)
+            if fairness
+            else "_To be filled: run python -m deepfake_detector.fairness on the evaluation._"
+        )
+        text = fill_block(text, "fairness", body)
     text = fill_block(text, "per_method", _per_method(results, m5))
     text = fill_block(text, "robustness", _robustness(results))
     text = fill_block(text, "calibration", _calibration(results, calibration))
@@ -237,7 +247,11 @@ def stage(
     results = json.loads(results_path.read_text())
     calibration = json.loads(cal_path.read_text())
     m5 = json.loads(m5_path.read_text()) if m5_path else None
-    card = fill_card(template.read_text(encoding="utf-8"), results, calibration, hashes, m5)
+    fair_path = results_path.parent / "fairness.json"
+    fairness = json.loads(fair_path.read_text()) if fair_path.exists() else None
+    card = fill_card(
+        template.read_text(encoding="utf-8"), results, calibration, hashes, m5, fairness
+    )
     (out / "README.md").write_text(card, encoding="utf-8")
     return validate(card, results, m5)
 
