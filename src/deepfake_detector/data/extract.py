@@ -77,8 +77,22 @@ def read_frames(path: str | Path, k: int) -> list[tuple[int, np.ndarray]]:
     return out
 
 
+def frame_files(folder: str | Path) -> list[Path]:
+    """Image files of a frame-sequence folder, in natural order (2.png before 10.png)."""
+
+    def key(p: Path) -> tuple[int, str]:
+        digits = "".join(ch for ch in p.stem if ch.isdigit())
+        return (int(digits) if digits else -1, p.name)
+
+    return sorted((p for p in Path(folder).iterdir() if is_image(p)), key=key)
+
+
 def read_media(path: str | Path, k: int) -> list[tuple[int, np.ndarray]]:
-    """Read an image (as a single frame 0) or k frames of a video."""
+    """Read an image (as frame 0), k frames of a video, or k frames of a folder of images
+    (datasets such as WildDeepfake ship sequences as frame folders)."""
+    if Path(path).is_dir():
+        files = frame_files(path)
+        return [(i, read_image(files[i])) for i in sample_indices(len(files), k)]
     if is_image(path):
         return [(0, read_image(path))]
     return read_frames(path, k)

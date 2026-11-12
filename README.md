@@ -52,6 +52,14 @@ No dataset can be downloaded freely; each requires accepting its license first. 
 `data/`, which git ignores. No dataset file is ever committed or re-shared. See
 [docs/datasets.md](docs/datasets.md) for access steps and license terms.
 
+Once access is approved, `scripts/get_data.py` runs the official FF++ script, unpacks the
+Celeb-DF and DFDC archives you received, arranges the other test sets, and counts every file:
+
+```bash
+python scripts/get_data.py disk
+python scripts/get_data.py check
+```
+
 ## Preprocessing
 
 Extracts 32 evenly spaced frames per video, detects the main face with the SFD detector, saves

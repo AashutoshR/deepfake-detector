@@ -12,6 +12,14 @@ Celeb-DF v2 (root = data/raw/celebdf_v2)
     Celeb-synthesis/id0_id16_0000.mp4
     YouTube-real/00000.mp4
     List_of_testing_videos.txt
+
+DFDC subset (root = data/raw/dfdc), made by scripts/get_data.py dfdc
+    videos/<name>.mp4
+    metadata.json        {"<name>.mp4": {"label": "REAL" | "FAKE", "original": ...}}
+
+Any other test set (DeeperForensics-1.0, WildDeepfake, DF40), root = data/raw/<dataset>
+    real/**              videos, images, or folders of frames (one folder = one sequence)
+    fake/<method>/**     the same; <method> names the fake-making method
 """
 
 from __future__ import annotations
@@ -114,7 +122,74 @@ def index_celebdf(root: str | Path, only_test: bool = True) -> list[VideoRecord]
     return records
 
 
+def index_dfdc(root: str | Path) -> list[VideoRecord]:
+    """Index the fixed DFDC subset. A fake shares a person id with the real video it came from."""
+    root = Path(root)
+    meta = json.loads((root / "metadata.json").read_text())
+    records = []
+    for name, info in sorted(meta.items()):
+        path = root / "videos" / name
+        label = FAKE if info["label"].upper() == "FAKE" else REAL
+        source = Path(info.get("original") or name).stem
+        records.append(
+            VideoRecord(path, Path(name).stem, label, "dfdc" if label else "real", "dfdc",
+                        "test", "na", (f"dfdc:{source}",))
+        )  # fmt: skip
+    return records
+
+
+MEDIA_SUFFIXES = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+
+
+def _media_items(folder: Path) -> list[Path]:
+    """Videos, single images, and frame folders (a folder whose files are images) below folder."""
+    from deepfake_detector.data.extract import is_image
+
+    items: list[Path] = []
+    for d in sorted([folder, *(p for p in folder.rglob("*") if p.is_dir())]):
+        files = [p for p in d.iterdir() if p.is_file()]
+        images = [p for p in files if is_image(p)]
+        if images and len(images) == len(files) and d != folder:
+            items.append(d)  # a sequence of frames
+            continue
+        items += sorted(p for p in files if p.suffix.lower() in MEDIA_SUFFIXES)
+        if d == folder:
+            items += sorted(images)  # loose single images at the top level
+    return items
+
+
+def index_folders(root: str | Path, dataset: str, split: str = "test") -> list[VideoRecord]:
+    """Index a dataset arranged as real/** and fake/<method>/** (see module docstring).
+
+    These test sets publish no identity labels, so each item is its own person for the leak
+    check; they are only ever used as test sets.
+    """
+    root = Path(root)
+    records: list[VideoRecord] = []
+    for p in _media_items(root / "real"):
+        vid = p.relative_to(root).with_suffix("").as_posix()
+        records.append(
+            VideoRecord(p, vid, REAL, "real", dataset, split, "na", (f"{dataset}:{vid}",))
+        )
+    fake_root = root / "fake"
+    for method_dir in (
+        sorted(d for d in fake_root.iterdir() if d.is_dir()) if fake_root.exists() else []
+    ):
+        for p in _media_items(method_dir):
+            vid = p.relative_to(root).with_suffix("").as_posix()
+            records.append(
+                VideoRecord(
+                    p, vid, FAKE, method_dir.name, dataset, split, "na", (f"{dataset}:{vid}",)
+                )
+            )
+    return records
+
+
 INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "ffpp": index_ffpp,
     "celebdf_v2": index_celebdf,
+    "dfdc": index_dfdc,
+    "deeperforensics": lambda root: index_folders(root, "deeperforensics"),
+    "wilddeepfake": lambda root: index_folders(root, "wilddeepfake"),
+    "df40": lambda root: index_folders(root, "df40"),
 }
