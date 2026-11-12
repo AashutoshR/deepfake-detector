@@ -60,6 +60,17 @@ python scripts/get_data.py disk
 python scripts/get_data.py check
 ```
 
+## Reproducing the results
+
+[docs/REPRODUCE.md](docs/REPRODUCE.md) lists every step from a fresh clone to the headline
+table, with GPU-hour estimates. The headline experiments (final model and three baselines over
+3 seeds) run with:
+
+```bash
+python scripts/run_experiments.py --dry-run
+python scripts/run_experiments.py --only final
+```
+
 ## Preprocessing
 
 Extracts 32 evenly spaced frames per video, detects the main face with the SFD detector, saves

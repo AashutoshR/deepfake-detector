@@ -159,8 +159,10 @@ def execute(
     eval_config: Path,
     common: Sequence[str] = (),
     runner: Runner = _subprocess_runner,
+    calibrate: bool = False,
 ) -> None:
-    """Train and test every run that has no results yet; resume stopped runs."""
+    """Train (and optionally calibrate) and test every run that has no results yet; resume
+    stopped runs. Calibration only changes ECE and the bands, never AUC."""
     for i, run in enumerate(runs.values(), 1):
         result = out_dir / run.name / "results.json"
         if result.exists():
@@ -173,6 +175,9 @@ def execute(
         else:
             names = [f"train.out_dir={runs_dir.as_posix()}", f"train.run_name={run.name}"]
             runner(["deepfake_detector.train", *common, *run.overrides, *names])
+        if calibrate:
+            ckpt = str(runs_dir / run.name / "best.pt")
+            runner(["deepfake_detector.calibrate", "--checkpoint", ckpt])
         runner(
             [
                 "deepfake_detector.evaluate",
