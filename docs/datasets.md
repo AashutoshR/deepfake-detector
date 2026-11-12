@@ -6,11 +6,11 @@ these datasets consented to it (S-9).
 
 | Priority | Dataset | Role | Status | Date requested | Date approved | License terms |
 |---|---|---|---|---|---|---|
-| 1 | FaceForensics++ | Train, val, same-dataset test | Not requested | | | |
-| 1 | Celeb-DF v2 | Main cross-dataset test (M2) | Not requested | | | |
-| 2 | DFDC (about 1,000 video subset) | Cross-dataset test (M3) | Not requested | | | |
-| 3 | DeeperForensics-1.0 | Cross-dataset, robustness (M4) | Not requested | | | |
-| 3 | WildDeepfake | In-the-wild test (M4) | Not requested | | | |
+| 1 | FaceForensics++ | Train, val, same-dataset test | Requested | 2026-11-12 | | |
+| 1 | Celeb-DF v2 | Main cross-dataset test (M2) | Requested | 2026-11-12 | | |
+| 2 | DFDC (about 1,000 video subset) | Cross-dataset test (M3) | Requested | 2026-11-12 | | |
+| 3 | DeeperForensics-1.0 | Cross-dataset, robustness (M4) | Requested | 2026-11-12 | | |
+| 3 | WildDeepfake | In-the-wild test (M4) | Requested | 2026-11-12 | | |
 | 4 | DF40 (optional) | Unseen modern methods | Not requested | | | |
 
 ## Getting each dataset
