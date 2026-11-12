@@ -15,6 +15,7 @@ lightning_logs/
 
 # Demo uploads (deleted after each prediction, ignored just in case)
 uploads/
+release/
 
 # Python
 __pycache__/

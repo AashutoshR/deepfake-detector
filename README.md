@@ -131,6 +131,21 @@ for every frame, and an attention heatmap on the most suspicious face. Each uplo
 straight after scoring, and nothing about it is stored or logged. Without a GPU it runs on the
 CPU, more slowly.
 
+## Release
+
+```bash
+python scripts/release.py --checkpoint runs/<run>/best.pt     --results outputs/eval/<run>/best/results.json --m5 m5.json --out release
+python scripts/release.py ... --push --repo-id <user>/deepfake-detector
+```
+
+Staging exports weights only (`model.safetensors`), the model config, the calibration, a CC
+BY-NC 4.0 notice, SHA-256 hashes, and the model card from
+[docs/MODEL_CARD.md](docs/MODEL_CARD.md) with results, calibration, robustness, tested methods
+and hashes filled in. Publishing uploads all of it to Hugging Face Hub in one commit. It
+refuses a public release while any card section is unfinished, the Celeb-DF headline result
+is missing, or unseen-method (M5) results are missing, and it asks you to type the repo id
+first. `predict` and the demo load `model.safetensors` directly.
+
 ## GPU budget (RTX 4060 Laptop, 8 GB)
 
 Measured with `python scripts/bench_gpu.py` (batch 16, bf16, 224 x 224):

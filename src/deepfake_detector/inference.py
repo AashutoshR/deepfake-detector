@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -16,16 +17,24 @@ from deepfake_detector.models import Detector, build_model
 def load_detector(
     checkpoint: str | Path, device: torch.device | None = None
 ) -> tuple[Detector, dict[str, Any]]:
-    """Rebuild the model from the config stored in a checkpoint and load its weights.
+    """Rebuild the model and load its weights, from either a training checkpoint (.pt, config
+    inside) or a released model.safetensors (config.json next to it).
 
-    Returns (model in eval mode, full run config as a dict).
+    Returns (model in eval mode, run config as a dict).
     """
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    ckpt = torch.load(checkpoint, map_location="cpu", weights_only=True)
-    cfg: dict[str, Any] = ckpt["config"]
+    path = Path(checkpoint)
+    if path.suffix == ".safetensors":
+        from safetensors.torch import load_file
+
+        cfg: dict[str, Any] = json.loads((path.parent / "config.json").read_text())
+        state = load_file(str(path))
+    else:
+        ckpt = torch.load(path, map_location="cpu", weights_only=True)
+        cfg, state = ckpt["config"], ckpt["model"]
     model_cfg = {**cfg["model"], "grad_checkpointing": False}
     model = build_model(model_cfg, pretrained_weights=False)
-    model.load_state_dict(ckpt["model"])
+    model.load_state_dict(state)
     return model.to(device).eval(), cfg
 
 
