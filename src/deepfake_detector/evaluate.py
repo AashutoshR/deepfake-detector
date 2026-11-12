@@ -136,6 +136,7 @@ def evaluate(
 
     results: dict[str, Any] = {
         "checkpoint": str(checkpoint),
+        "data_root": str(root),
         "temperature": calibration.temperature,
         "leave_out_method": cfg["train"]["leave_out_method"],
         "video_score": how,
@@ -154,6 +155,8 @@ def evaluate(
         )
         frames["prob_uncalibrated"] = frames["prob"]
         frames["prob"] = calibration.apply(frames["logit"].to_numpy())
+        frames["crop_path"] = df["crop_path"].to_numpy()  # loader keeps manifest order
+        frames["frame"] = df["frame"].to_numpy()
         frames.to_parquet(out_dir / f"{name}_frames.parquet", index=False)
 
         m: dict[str, Any] = dict(summarize(frames, how, k))
