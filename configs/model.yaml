@@ -1,11 +1,13 @@
 # Model (FR-M1 to FR-M6)
-name: vit_base_patch16_224
-pretrained: imagenet21k      # imagenet21k | clip | dinov2 (ablation A1)
+arch: vit                    # vit | xception | efficientnet_b4 (baselines, FR-M4)
+pretrained: imagenet21k      # vit: imagenet21k | clip | dinov2 | none (ablation A1)
+timm_name: null              # override the timm model name (used by tests)
+img_size: 224
 pooling: cls                 # cls | mean_patch (ablation A5)
-num_classes: 1               # real vs fake logit
+dropout: 0.0
 
 finetune:
-  mode: lora                 # lora | full | last_layer (ablation A2)
+  mode: lora                 # lora | full | last_layer (ablation A2); baselines use full
   lora:
     r: 16
     alpha: 32
@@ -13,7 +15,8 @@ finetune:
     target_modules: [qkv]
 
 method_head:
-  enabled: false             # predict the fake method (FR-M5, ablation A6)
+  enabled: false             # also predict the fake method (FR-M5, ablation A6)
+  weight: 0.5                # loss weight of the method head
 
 freq_branch:
   enabled: false             # frequency-domain side branch (FR-M6, could)

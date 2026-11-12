@@ -68,6 +68,36 @@ python -m deepfake_detector.data.preprocess --dataset celebdf_v2 --raw data/raw/
 Add `--limit 20` for a quick trial run. The manifest is checked automatically so no video or
 person appears in two splits.
 
+## Training
+
+```bash
+python -m deepfake_detector.train                                   # ViT-B/16 + LoRA, defaults
+python -m deepfake_detector.train train.leave_out_method=Deepfakes train.run_name=lomo_deepfakes
+python -m deepfake_detector.train model.arch=xception train.run_name=xception
+python -m deepfake_detector.train --resume runs/<run>/last.pt
+tensorboard --logdir runs
+```
+
+Each run folder in `runs/` holds the merged config, library versions and git commit, TensorBoard
+logs, `metrics.jsonl`, `last.pt` (saved every 30 minutes and every epoch) and `best.pt` (best
+FF++ validation video AUC). Test sets are never used during training.
+
+## GPU budget (RTX 4060 Laptop, 8 GB)
+
+Measured with `python scripts/bench_gpu.py` (batch 16, bf16, 224 x 224):
+
+| Setting | Trainable params | Peak memory | Images/s |
+|---|---|---|---|
+| ViT-B/16 LoRA (default) | 0.6M | 1.3 GB | 185 |
+| ViT-B/16 LoRA, gradient checkpointing | 0.6M | 0.6 GB | 136 |
+| ViT-B/16 full fine-tuning, checkpointing | 85.8M | 1.6 GB | 97 |
+| ViT-B/16 last layer only | 7.1M | 0.5 GB | 335 |
+| Xception full | 20.8M | 1.4 GB | 168 |
+| EfficientNet-B4 full | 17.6M | 0.6 GB | 74 |
+
+ViT-B/16 inference: about 2.6 ms per face. A laptop GPU can slow down when hot, so long runs
+should be plugged in and well ventilated.
+
 ## Layout
 
 ```

@@ -54,6 +54,13 @@ class TrainTransform:
         self.augment = build_augment(preset)
         self.sbi_prob = sbi_prob
         self.rng = np.random.default_rng(seed)
+        if seed is not None:
+            self.augment.set_random_seed(seed)
+
+    def reseed(self, seed: int) -> None:
+        """Give each DataLoader worker its own random stream (called from worker_init_fn)."""
+        self.rng = np.random.default_rng(seed)
+        self.augment.set_random_seed(seed)
 
     def __call__(
         self, img: np.ndarray, landmarks: np.ndarray | None, label: int

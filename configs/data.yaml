@@ -1,8 +1,8 @@
 # Data pipeline (FR-D1 to FR-D8). Same preprocessing for every dataset (FR-D6).
 root: data
-raw_dir: ${root}/raw
-crops_dir: ${root}/crops
-manifest_dir: ${root}/manifests
+raw_dir: ${.root}/raw
+crops_dir: ${.root}/crops
+manifest_dir: ${.root}/manifests
 
 frames:
   train_per_video: 32        # evenly spaced (FR-D1)

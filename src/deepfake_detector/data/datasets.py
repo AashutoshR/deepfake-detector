@@ -56,14 +56,18 @@ class FaceCropDataset(Dataset[dict[str, Any]]):
         lm = row["landmarks"]
         landmarks = None if lm is None else np.asarray(lm, np.float32).reshape(-1, 2)
         label = int(row["label"])
+        method = str(row["method"])
         if self.transform is not None:
-            img, label = self.transform(img, landmarks, label)
+            new_img, new_label = self.transform(img, landmarks, label)
+            if new_label != label:
+                method = "sbi"  # a real crop turned into a self-blended fake
+            img, label = new_img, new_label
         tensor = torch.from_numpy(np.ascontiguousarray(img)).permute(2, 0, 1).float() / 255.0
         return {
             "image": tensor,
             "label": torch.tensor(label, dtype=torch.float32),
             "video_id": row["video_id"],
-            "method": row["method"],
+            "method": method,
         }
 
 

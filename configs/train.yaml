@@ -1,21 +1,22 @@
 # Training (FR-T1 to FR-T9). Sized for an 8 GB laptop RTX 4060 (NFR-1).
+dataset: ffpp
+compressions: [c23]          # [c23, c40] for ablation A7
 seed: 0
 epochs: 20
+samples_per_epoch: null      # null = one pass over all training crops
 batch_size: 16
 grad_accum: 4                # effective batch 64
-precision: bf16
-grad_checkpointing: true
+num_workers: 4
+precision: bf16              # bf16 | fp32
+grad_checkpointing: false    # measured: LoRA peaks at 1.3 GB without it and runs 36% faster
+grad_clip: 1.0
 
 optimizer:
-  name: adamw
   lr: 1.0e-4
   weight_decay: 0.05
 
 scheduler:
-  name: cosine
-  warmup_epochs: 1
-
-balance: weighted_sampler    # FF++ has 4 fakes per real
+  warmup_epochs: 1           # cosine decay after linear warmup
 
 augment:
   preset: full               # basic | full (ablation A4)
@@ -23,12 +24,17 @@ augment:
 sbi:
   enabled: true              # self-blended images (FR-T4, ablation A3)
   prob: 0.5
+  only: false                # true = drop FF++ fakes and train on SBI fakes only
 
 leave_out_method: null       # e.g. Deepfakes for M5 (FR-T5)
 
-checkpoint:
-  dir: checkpoints
-  every_minutes: 30          # laptop: short intervals so throttling or sleep costs little
-  select_on: val_auc         # FF++ validation only (FR-T6)
+val:
+  frames_per_video: 8        # fewer frames per video keeps validation quick
+  video_score: mean
 
-log_dir: runs                # TensorBoard (FR-T7)
+checkpoint:
+  every_minutes: 30          # laptop: short intervals so throttling or sleep costs little
+
+out_dir: runs                # one folder per run: config, env, TensorBoard, checkpoints
+run_name: null               # default: timestamp
+log_every: 50                # optimizer steps between TensorBoard logs
