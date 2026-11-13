@@ -35,7 +35,7 @@ from torch.utils.data import DataLoader, get_worker_info
 from torch.utils.tensorboard import SummaryWriter
 
 from deepfake_detector.data.augment import TrainTransform
-from deepfake_detector.data.datasets import FaceCropDataset, add_sbi_copies, load_manifest
+from deepfake_detector.data.datasets import FaceCropDataset, add_sbi_copies, load_manifests
 from deepfake_detector.data.extract import sample_indices
 from deepfake_detector.inference import predict_frames
 from deepfake_detector.metrics import auc_per_method, summarize
@@ -124,14 +124,14 @@ def _every_nth_frame(df: pd.DataFrame, n: int) -> pd.DataFrame:
 
 def make_data(cfg: DictConfig) -> tuple[FaceCropDataset, FaceCropDataset]:
     t = cfg.train
-    manifest = Path(cfg.data.manifest_dir) / t.dataset / "manifest.parquet"
     kwargs = {"leave_out_method": t.leave_out_method, "compressions": list(t.compressions)}
-    train_df = load_manifest(manifest, split="train", **kwargs)
+    train_df = load_manifests(cfg.data.manifest_dir, t.dataset, split="train", **kwargs)
     if t.sbi.only:
         train_df = train_df[train_df["label"] == 0].reset_index(drop=True)
     # The held-out method is dropped from validation too, so it never guides model selection.
     val_df = _every_nth_frame(
-        load_manifest(manifest, split="val", **kwargs), t.val.frames_per_video
+        load_manifests(cfg.data.manifest_dir, t.dataset, split="val", **kwargs),
+        t.val.frames_per_video,
     )
     if t.val.get("sbi_fakes", False):
         val_df = add_sbi_copies(val_df, t.seed)  # real-only data: fixed self-blended fakes

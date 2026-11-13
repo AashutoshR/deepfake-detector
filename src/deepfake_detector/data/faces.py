@@ -55,11 +55,20 @@ def pad_to_multiple(rgb: np.ndarray, m: int = PAD_MULTIPLE) -> np.ndarray:
 class SFDDetector:
     """face-alignment SFD detector plus 68-point 2D landmarks."""
 
-    def __init__(self, device: str = "cuda", min_score: float = 0.9) -> None:
+    def __init__(
+        self, device: str = "cuda", min_score: float = 0.9, flip_input: bool = False
+    ) -> None:
         import face_alignment
 
         self.min_score = min_score
-        kwargs: dict[str, object] = {"face_detector": "sfd", "device": device}
+        # flip_input=True runs the landmark network twice (image and mirror) and averages. That
+        # moved landmarks by about 1 px on 512 px faces but cost 40% of preprocessing time, and
+        # landmarks are only used to shape self-blended fakes; the crop comes from the box.
+        kwargs: dict[str, object] = {
+            "face_detector": "sfd",
+            "device": device,
+            "flip_input": flip_input,
+        }
         if "compile" in inspect.signature(face_alignment.FaceAlignment).parameters:
             # face-alignment 1.5+ compiles its network with torch.compile, which needs Triton;
             # Triton is not available on Windows, so the first call would crash.

@@ -54,16 +54,17 @@ def test_sfd_detector_turns_off_torch_compile(monkeypatch: pytest.MonkeyPatch) -
     class FakeFA:
         def __init__(
             self, landmarks_type: int, face_detector: str = "sfd", device: str = "cuda",
-            compile: bool = True,
+            compile: bool = True, flip_input: bool = True,
         ) -> None:  # fmt: skip
-            seen.update(face_detector=face_detector, device=device, compile=compile)
+            seen.update(face_detector=face_detector, device=device, compile=compile,
+                        flip_input=flip_input)  # fmt: skip
 
     fake = types.SimpleNamespace(FaceAlignment=FakeFA, LandmarksType=types.SimpleNamespace(TWO_D=1))
     monkeypatch.setitem(sys.modules, "face_alignment", fake)
     from deepfake_detector.data.faces import SFDDetector
 
     SFDDetector(device="cpu")
-    assert seen == {"face_detector": "sfd", "device": "cpu", "compile": False}
+    assert seen == {"face_detector": "sfd", "device": "cpu", "compile": False, "flip_input": False}
 
 
 def test_pad_to_multiple_keeps_coordinates() -> None:

@@ -30,6 +30,27 @@ def load_manifest(
     return df.reset_index(drop=True)
 
 
+def dataset_names(dataset: Any) -> list[str]:
+    """train.dataset may be one name or a list of names (training on several datasets)."""
+    return [dataset] if isinstance(dataset, str) else [str(d) for d in dataset]
+
+
+def load_manifests(
+    manifest_dir: str | Path,
+    dataset: Any,
+    split: str | None = None,
+    leave_out_method: str | None = None,
+    compressions: Iterable[str] | None = None,
+) -> pd.DataFrame:
+    """load_manifest for each of one or several datasets, stacked."""
+    parts = [
+        load_manifest(Path(manifest_dir) / n / "manifest.parquet", split, leave_out_method,
+                      compressions)
+        for n in dataset_names(dataset)
+    ]  # fmt: skip
+    return pd.concat(parts, ignore_index=True) if len(parts) > 1 else parts[0]
+
+
 def add_sbi_copies(df: pd.DataFrame, seed: int = 0) -> pd.DataFrame:
     """Add a self-blended fake copy of every real crop, made the same way every time.
 

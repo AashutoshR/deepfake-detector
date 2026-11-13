@@ -38,6 +38,7 @@ from deepfake_detector.data.datasets import (  # noqa: E402
     FaceCropDataset,
     add_sbi_copies,
     load_manifest,
+    load_manifests,
 )
 from deepfake_detector.data.extract import sample_indices  # noqa: E402
 from deepfake_detector.data.perturb import PerturbTransform  # noqa: E402
@@ -108,8 +109,9 @@ def score_split(
     model, cfg = load_detector(checkpoint)
     t = cfg["train"]
     root = data_root or Path(cfg["data"]["root"])
-    df = load_manifest(
-        _manifest_path(cfg, t["dataset"], data_root),
+    df = load_manifests(
+        data_root / "manifests" if data_root else cfg["data"]["manifest_dir"],
+        t["dataset"],
         split=split,
         leave_out_method=None if keep_left_out else t["leave_out_method"],
         compressions=t["compressions"],

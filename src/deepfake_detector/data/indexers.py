@@ -235,12 +235,65 @@ def index_dff(root: str | Path) -> list[VideoRecord]:
     return records
 
 
+def _val_or_train(key: str) -> str:
+    return "val" if zlib.crc32(key.encode()) % 10 == 0 else "train"
+
+
+def index_wilddeepfake(root: str | Path) -> list[VideoRecord]:
+    """WildDeepfake as made by data/open_sets.py: {train,test}/{real,fake}/<video>_<seq>/ frames.
+
+    Each face sequence is one record. A tenth of the training videos (by video id) become
+    validation, so all sequences of one video stay in one split. A folder in the plain test-set
+    layout (real/ and fake/<method>/) is indexed as a test set instead.
+    """
+    root = Path(root)
+    if not (root / "train").exists() and not (root / "test").exists():
+        return index_folders(root, "wilddeepfake")
+    records = []
+    for split_dir in ("train", "test"):
+        for kind, label in (("real", REAL), ("fake", FAKE)):
+            folder = root / split_dir / kind
+            for seq in sorted(folder.iterdir()) if folder.exists() else []:
+                if not seq.is_dir():
+                    continue
+                video = f"{split_dir}{kind}:{seq.name.split('_')[0]}"
+                split = "test" if split_dir == "test" else _val_or_train(video)
+                method = "real" if label == REAL else "wilddeepfake"
+                records.append(
+                    VideoRecord(seq, f"wdf/{split_dir}/{kind}/{seq.name}", label, method,
+                                "wilddeepfake", split, "na", (f"wdf:{video}",))
+                )  # fmt: skip
+    return records
+
+
+def index_openforensics(root: str | Path) -> list[VideoRecord]:
+    """OpenForensics faces as made by data/open_sets.py.
+
+    Layout: {train,val,test}/{real,fake}/<photo>_<k>.jpg, one labelled face per file.
+
+    Faces cut from the same photo share a person id, so a photo never spans two splits.
+    """
+    root = Path(root)
+    records = []
+    for split in ("train", "val", "test"):
+        for kind, label in (("real", REAL), ("fake", FAKE)):
+            for p in sorted((root / split / kind).glob("*.jpg")):
+                photo = p.stem.rsplit("_", 1)[0]
+                method = "real" if label == REAL else "openforensics"
+                records.append(
+                    VideoRecord(p, f"of/{split}/{kind}/{p.stem}", label, method, "openforensics",
+                                split, "na", (f"of:{photo}",))
+                )  # fmt: skip
+    return records
+
+
 INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "ffpp": index_ffpp,
     "celebdf_v2": index_celebdf,
     "dfdc": index_dfdc,
     "deeperforensics": lambda root: index_folders(root, "deeperforensics"),
-    "wilddeepfake": lambda root: index_folders(root, "wilddeepfake"),
+    "wilddeepfake": index_wilddeepfake,
+    "openforensics": index_openforensics,
     "df40": lambda root: index_folders(root, "df40"),
     "ffhq": index_ffhq,
     "dff": index_dff,

@@ -116,7 +116,7 @@ def teach(
 ) -> dict[str, Any]:
     from deepfake_detector.calibrate import Calibration, calibrate_frames
     from deepfake_detector.data.augment import TrainTransform
-    from deepfake_detector.data.datasets import FaceCropDataset, load_manifest
+    from deepfake_detector.data.datasets import FaceCropDataset, load_manifests
     from deepfake_detector.inference import load_detector, predict_frames
     from deepfake_detector.metrics import summarize
     from deepfake_detector.train import _every_nth_frame, save_checkpoint
@@ -127,12 +127,12 @@ def teach(
     model, cfg = load_detector(base, device)
     t = cfg["train"]
     data_root = Path(cfg["data"]["root"])
-    manifest = Path(cfg["data"]["manifest_dir"]) / t["dataset"] / "manifest.parquet"
+    man_dir, names = cfg["data"]["manifest_dir"], t["dataset"]
     filters = {"leave_out_method": t["leave_out_method"], "compressions": t["compressions"]}
 
     examples = prepare(feedback_root, data_root)
     val_df = _every_nth_frame(
-        load_manifest(manifest, split="val", **filters), t["val"]["frames_per_video"]
+        load_manifests(man_dir, names, split="val", **filters), t["val"]["frames_per_video"]
     )
 
     def score(df: pd.DataFrame) -> pd.DataFrame:
@@ -147,7 +147,7 @@ def teach(
 
     sbi_prob = float(t["sbi"]["prob"]) if t["sbi"]["enabled"] else 0.0
     train_df = mix(
-        examples, load_manifest(manifest, split="train", **filters), repeats, n_replay, seed
+        examples, load_manifests(man_dir, names, split="train", **filters), repeats, n_replay, seed
     )
     ds = FaceCropDataset(
         train_df, data_root, TrainTransform(t["augment"]["preset"], sbi_prob=sbi_prob, seed=seed)
