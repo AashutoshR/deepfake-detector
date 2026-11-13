@@ -1,0 +1,35 @@
+\section{Introduction}
+
+Realistic face manipulation is now cheap. Face swapping, reenactment and fully generated faces
+can be produced with open-source tools and consumer hardware, and manipulated videos of real
+people are used for fraud, harassment and disinformation. Automatic detection is one part of the
+response, but only if detectors work on the videos they will actually meet.
+
+That is where current detectors fall short. Trained and tested on the same benchmark, such as
+FaceForensics++ (FF++)~\citep{rossler2019faceforensics}, many models score close to 0.99 AUC.
+Tested on a different dataset, such as Celeb-DF~\citep{li2020celebdf}, the same models often fall
+to between 0.65 and 0.75~\citep{li2020celebdf,yan2023deepfakebench}. In practice the method used
+to make a fake is almost never one the detector was trained on, so cross-dataset performance,
+not same-dataset performance, is the number that matters.
+
+A common explanation is that detectors learn shortcuts specific to the training generators,
+such as a particular color mismatch or compression trace, instead of the more general marks that
+manipulation leaves behind. Two lines of work address this. One synthesizes training fakes that
+only contain generic blending artifacts~\citep{li2020facexray,shiohara2022sbi}. The other starts
+from large pretrained vision models whose features generalize well and adapts them
+lightly~\citep{ojha2023towards}.
+
+We combine both in a model small enough to train on a single 8\,GB laptop GPU, and we focus on
+measuring it honestly. Our contributions are:
+\begin{itemize}
+  \item A ViT-B/16 detector fine-tuned with LoRA~\citep{hu2022lora} on FF++ face crops, trained
+        with self-blended images~\citep{shiohara2022sbi} and degradation augmentation.
+  \item A full cross-dataset evaluation on Celeb-DF v2, DFDC, DeeperForensics-1.0 and
+        WildDeepfake, plus a leave-one-method-out protocol on FF++, against Xception,
+        EfficientNet-B4 and a plainly fine-tuned ViT trained with the same pipeline, over three
+        seeds with bootstrap confidence intervals.
+  \item Calibrated outputs reported as three bands (likely real, uncertain, likely manipulated)
+        rather than a binary verdict, with calibration error measured on every test set.
+  \item Robustness, fairness and failure analyses, and ablations of every design choice,
+        explaining why the chosen settings help.
+\end{itemize}

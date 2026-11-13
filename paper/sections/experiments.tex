@@ -1,0 +1,26 @@
+\section{Experimental setup}
+
+\paragraph{Training data.} All models are trained on FF++ c23 only, with the official
+720/140/140 video split, which keeps every identity in a single split. An automated check
+confirms that no video or person appears in two splits.
+
+\paragraph{Test sets.} We test on the FF++ c23 and c40 test splits, the 518 Celeb-DF v2 test
+videos, a fixed seeded subset of \res{1{,}000} DFDC videos, and the test sets of
+DeeperForensics-1.0 and WildDeepfake \todo{confirm which were available}. For the unseen-method
+protocol we train four models, each without one FF++ method, and test on the held-out method
+against all real test videos.
+
+\paragraph{Baselines.} Xception~\citep{chollet2017xception} and
+EfficientNet-B4~\citep{tan2019efficientnet}, fully fine-tuned with exactly the same
+preprocessing, self-blended images and augmentation as our model, and a ViT-B/16 fully
+fine-tuned with basic augmentation and no self-blended images (``plain ViT''). Baselines
+train for 10 epochs; our model trains for 20.
+
+\paragraph{Metrics.} The main metric is video-level AUC. We also report frame-level AUC, equal
+error rate, accuracy, log loss and expected calibration error (ECE, 15 bins). Headline numbers
+are the mean and standard deviation over three seeds, with 95\% bootstrap confidence intervals
+from 1{,}000 resamples of the test videos.
+
+\paragraph{Targets.} Set before running any experiment: same-dataset AUC $\geq 0.97$,
+Celeb-DF v2 AUC $\geq 0.80$, DFDC AUC $\geq 0.70$, mean unseen-method AUC $\geq 0.85$, FF++ c40
+AUC $\geq 0.85$, and Celeb-DF ECE $\leq 0.10$.

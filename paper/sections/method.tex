@@ -1,0 +1,52 @@
+\section{Method}
+
+\subsection{Face extraction}
+From each video we take 32 evenly spaced frames. Faces are detected with the S$^3$FD detector
+and 68 landmarks are estimated with FAN, using the same detector for every dataset so that
+preprocessing never differs between training and test data. When a frame contains several faces
+we follow the face that overlaps the previous frame's face, falling back to the largest one. The
+crop is a square of 1.3 times the face box, resized to $224\times224$. Videos without a usable
+face are logged with a reason rather than silently dropped; \res{N} of \res{N} videos were
+skipped across all datasets.
+
+\subsection{Model}
+The backbone is a ViT-B/16~\citep{dosovitskiy2021vit} initialized from ImageNet-21k
+weights. A linear head on the CLS token produces one logit per crop. We insert LoRA
+adapters~\citep{hu2022lora} of rank $r=16$ and scale $\alpha=32$ into the query, key and value
+projections of every attention layer and train only the adapters and the head: about 0.6M of
+86M parameters. Input normalization is part of the model so that training, testing and the
+released inference code see identical inputs.
+
+\subsection{Training data}
+\paragraph{Self-blended images.} Following~\citet{shiohara2022sbi}, with probability 0.5 a real
+training crop is turned into a synthetic fake. A copy of the face is altered (a per-channel
+color shift, a contrast change, sharpening or blurring, and a small resize and translation) and
+blended back over the original through the convex hull of its landmarks. The mask is randomly
+grown or shrunk, softened with a Gaussian blur, and scaled by a blend ratio drawn from
+$\{0.25, 0.5, 0.75, 1\}$. The result carries seams and color and frequency mismatches without
+the style of any particular generator.
+
+\paragraph{Augmentation.} After blending, every crop goes through horizontal flips, JPEG
+recompression (quality 30 to 100), Gaussian blur or downscaling, Gaussian noise, color jitter and
+cutout. Blending first means the synthetic artifacts are degraded the same way real fakes are.
+
+\paragraph{Balancing.} FF++ has four fakes per real video, so each epoch samples real and fake
+crops with equal probability.
+
+\subsection{Optimization}
+We use AdamW (learning rate $10^{-4}$, weight decay 0.05), a cosine schedule with one epoch of
+linear warmup, bf16 mixed precision, batch size 16 with gradient accumulation to an effective
+batch of 64, and gradient clipping at 1.0, for 20 epochs. The checkpoint with the best FF++
+validation video AUC is kept. The test sets are never used to choose a model, a threshold or
+when to stop. Training peaks at 1.3\,GB of GPU memory and runs at about 185 images per second on
+an RTX~4060 Laptop GPU.
+
+\subsection{From frames to calibrated bands}
+A video's score is the mean of its frame probabilities. One temperature $T$ is fitted on FF++
+validation frames by minimizing log loss~\citep{guo2017calibration}, and every frame logit is
+divided by $T$ before averaging. The output is then mapped to three bands. The lower cut-off
+leaves at most 5\% of validation fakes in \emph{likely real}, and the upper cut-off leaves at
+most 5\% of validation reals in \emph{likely manipulated}; everything between is
+\emph{uncertain}. The uncertain band is never narrower than 0.2, because FF++ validation
+separates more cleanly than unseen data and would otherwise squeeze it away. Every output
+carries a note that the score is an estimate, not proof.

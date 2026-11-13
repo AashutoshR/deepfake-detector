@@ -1,0 +1,46 @@
+\section{Results}
+
+\subsection{Cross-dataset generalization}
+Table~\ref{tab:main} \todo{generate with scripts/paper_tables.py} reports every test set in one
+table: the same-dataset result sits next to the cross-dataset results, not above them.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Video-level AUC, mean $\pm$ std over three seeds, all models trained on FF++ c23 only.}
+\label{tab:main}
+\input{tables/main}
+\end{table}
+
+\todo{Two or three sentences: headline number, comparison with the strongest baseline, where
+the gap closes and where it does not.}
+
+\subsection{Unseen manipulation methods}
+\todo{Table of held-out-method AUC per method and the mean (M5), and what the hardest held-out
+method tells us.}
+
+\subsection{Robustness}
+\todo{Figure: AUC against JPEG quality, blur, downscaling, noise and contrast. Which degradations
+hurt most, and how SBI and augmentation change the curves.}
+
+\subsection{Calibration}
+\todo{ECE before and after temperature scaling on every test set; how well the FF++ fitted bands
+transfer to unseen data.}
+
+\subsection{Fairness}
+\todo{AUC and false alarm rate per demographic group where published labels exist; every gap
+above 5 AUC points discussed.}
+
+\subsection{Ablations}
+\begin{table}[t]
+\centering
+\small
+\caption{Ablations (1 seed, 8 epochs). Each row changes one setting of the final model.}
+\label{tab:ablations}
+\input{tables/ablations}
+\end{table}
+
+\todo{Explain why the winning settings help, with evidence, not just which ones won.}
+
+\subsection{What the model looks at, and where it fails}
+\todo{Heatmap figure on correct and wrong predictions; patterns among false alarms and misses.}

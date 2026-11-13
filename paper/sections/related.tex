@@ -1,0 +1,27 @@
+\section{Related work}
+
+\paragraph{Benchmarks.} FaceForensics++~\citep{rossler2019faceforensics} provides 1{,}000 real
+YouTube videos and four manipulation methods at several compression levels, and is the most
+common training set. Celeb-DF~\citep{li2020celebdf} offers higher-quality face swaps with fewer
+visible artifacts. The DeepFake Detection Challenge dataset~\citep{dolhansky2020dfdc} is large and
+diverse, DeeperForensics-1.0~\citep{jiang2020deeperforensics} adds real-world perturbations, and
+WildDeepfake~\citep{zi2020wilddeepfake} collects fakes from the internet. DF40~\citep{yan2024df40}
+covers about forty newer methods. DeepfakeBench~\citep{yan2023deepfakebench} standardizes
+cross-dataset evaluation and documents the generalization gap we target.
+
+\paragraph{Detectors.} CNN classifiers such as Xception~\citep{chollet2017xception} and
+EfficientNet~\citep{tan2019efficientnet} are strong same-dataset baselines. Face
+X-ray~\citep{li2020facexray} and self-blended images (SBI)~\citep{shiohara2022sbi} instead train
+on synthetic blends of real faces, so the model learns the blending boundary common to most face
+swaps. Vision Transformers~\citep{dosovitskiy2021vit} and large pretrained encoders such as
+CLIP~\citep{radford2021clip} and DINOv2~\citep{oquab2024dinov2} have been shown to generalize
+better to unseen generators when adapted lightly~\citep{ojha2023towards}. Parameter-efficient
+fine-tuning with LoRA~\citep{hu2022lora} keeps most pretrained weights frozen, which limits
+overfitting to the training generators.
+
+\paragraph{Calibration, explanation and fairness.} Modern networks are often over-confident;
+temperature scaling~\citep{guo2017calibration} is a simple, effective fix that leaves the ranking
+unchanged. Attention rollout~\citep{abnar2020rollout} and Grad-CAM~\citep{selvaraju2017gradcam}
+show where a model looks. Deepfake detectors have been found to perform unevenly across
+demographic groups~\citep{trinh2021examination,xu2022comprehensive}, which matters most for false
+alarms on real people's videos.

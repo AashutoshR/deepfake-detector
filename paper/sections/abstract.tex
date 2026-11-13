@@ -1,0 +1,14 @@
+\begin{abstract}
+Face-manipulation detectors routinely reach near-perfect AUC on the dataset they were trained on,
+then lose much of that accuracy on videos made with other methods or collected elsewhere, which
+is the situation every deployed detector faces. We study how far a parameter-efficient Vision
+Transformer can close this gap when trained on FaceForensics++ alone. Our detector fine-tunes a
+pretrained ViT-B/16 with low-rank adapters on face crops, adds self-blended training images that
+teach blending artifacts rather than one generator's style, and uses heavy degradation
+augmentation. Scores are calibrated with temperature scaling and reported as three bands
+instead of a verdict. Trained only on FaceForensics++, the model reaches a video-level AUC of
+\res{X.XX $\pm$ X.XX} on Celeb-DF v2 and \res{X.XX} on unseen manipulation methods, against
+\res{X.XX} for the strongest baseline, and fits on a single 8\,GB laptop GPU. We report
+robustness to common degradations, calibration, results per demographic group, failure cases,
+and ablations of every design choice. Code and weights are released for research use.
+\end{abstract}

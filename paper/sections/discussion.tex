@@ -1,0 +1,21 @@
+\section{Limitations and broader impact}
+
+\paragraph{Limitations.} All models are trained on one dataset of mostly frontal, well-lit
+YouTube faces. The test sets cover face swaps and reenactment from 2018 to 2020 \todo{and DF40,
+if run}; newer diffusion-based swaps and talking-head generators are not tested, and a low score
+on them means only that this model did not detect them. Degradations are applied to face crops,
+which approximates but does not equal degrading the full video. Calibration fitted on FF++ does
+not fully carry over to other data. \todo{add limitations found in the results}
+
+\paragraph{Misuse.} A public detector can be used to tune fakes until they pass, and a low score
+can be misrepresented as proof of authenticity. We release the weights for research under a
+non-commercial license, with the failure cases and calibration documented, outputs framed as
+bands rather than verdicts, and an explicit note that a score is not proof.
+
+\paragraph{Data ethics.} Every dataset is used under its license and only for research; no faces
+are redistributed. Many people in these datasets did not consent to appearing in them, which is
+one more reason this model must not be used to make claims about specific individuals.
+
+\section{Conclusion}
+\todo{Two or three sentences once the results are in: what worked, by how much, and the most
+important open problem.}
