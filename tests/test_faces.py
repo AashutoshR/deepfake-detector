@@ -64,3 +64,14 @@ def test_sfd_detector_turns_off_torch_compile(monkeypatch: pytest.MonkeyPatch) -
 
     SFDDetector(device="cpu")
     assert seen == {"face_detector": "sfd", "device": "cpu", "compile": False}
+
+
+def test_pad_to_multiple_keeps_coordinates() -> None:
+    from deepfake_detector.data.faces import pad_to_multiple
+
+    img = np.full((300, 200, 3), 7, np.uint8)
+    out = pad_to_multiple(img)
+    assert out.shape == (384, 256, 3)
+    assert (out[:300, :200] == 7).all() and (out[300:] == 0).all() and (out[:, 200:] == 0).all()
+    same = np.zeros((256, 128, 3), np.uint8)
+    assert pad_to_multiple(same) is same

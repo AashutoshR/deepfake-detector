@@ -59,6 +59,9 @@
   .thumb p { font-size: 12px; color: var(--muted); margin: 6px 0 0; word-break: break-all; }
   .big { font-size: 44px; font-weight: 650; line-height: 1.1; }
   .band { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-weight: 600; color: #fff; }
+  .caveat { margin-top: 6px; max-width: 46ch; }
+  .teach { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .teach .row { margin: 6px 0; }
   .band.real { background: var(--real); } .band.uncertain { background: var(--unsure); } .band.fake { background: var(--fake); }
   .scale { height: 10px; border-radius: 5px; margin: 18px 0 6px; overflow: hidden; display: flex; }
   .scale div { height: 100%; }
@@ -157,10 +160,19 @@
         <div class="hint">Estimated chance of manipulation</div>
         <div class="big" id="prob">-</div>
         <div class="band" id="band">-</div>
+        <div class="hint caveat" id="caveat"></div>
         <div class="scale" id="scale"></div>
         <div class="marker"><span id="marker"></span></div>
-        <div class="ends"><span>0% real</span><span>100% manipulated</span></div>
+        <div class="ends"><span>0% nothing found</span><span>100% manipulated</span></div>
         <div class="meta" id="meta"></div>
+        <div class="teach" id="teach">
+          <span class="hint">Wrong answer? Teach the model with this file:</span>
+          <div class="row">
+            <button class="btn" data-teach="fake">It is a deepfake</button>
+            <button class="btn" data-teach="real">It is real</button>
+          </div>
+          <div class="hint" id="teachmsg">Saved only if you click, on this computer only.</div>
+        </div>
       </div>
       <div class="heat" id="heatwrap">
         <img id="heat" alt="Attention heatmap over the most suspicious face crop">
@@ -187,7 +199,7 @@
       <summary>How to read the result</summary>
       <ul>
         <li>The percentage is the model's calibrated estimate that the face was manipulated. It is not proof either way.</li>
-        <li>Three bands instead of a verdict: likely real, uncertain, likely manipulated. The cut-offs were set on validation data, and the uncertain band never shrinks to nothing.</li>
+        <li>Three bands instead of a verdict: no manipulation detected, uncertain, likely manipulated. The cut-offs were set on validation data, and the uncertain band never shrinks to nothing.</li>
         <li>A low score means "not detected by this model", never "real". New face-swap tools, heavy compression and very small faces all lower accuracy.</li>
         <li>The heatmap shows where the model looked on the most suspicious frame. It is a hint for a human reviewer, not evidence.</li>
         <li>Only the largest face is scored. Frames without a detectable face are skipped.</li>
@@ -200,6 +212,13 @@
 const $ = (id) => document.getElementById(id);
 const pct = (x) => (x * 100).toFixed(1) + "%";
 const BAND_CLASS = { "likely real": "real", "uncertain": "uncertain", "likely manipulated": "fake" };
+// A low score means this model found nothing, not that the media is real, so the UI says so.
+const BAND_TEXT = { "likely real": "No manipulation detected", "uncertain": "Uncertain", "likely manipulated": "Likely manipulated" };
+const CAVEAT = {
+  "likely real": "This model found no signs of manipulation. That is not proof the media is real: polished, re-encoded or new kinds of deepfakes can get past it.",
+  "uncertain": "The model cannot tell. Treat this as unverified.",
+  "likely manipulated": "The model found signs of manipulation. Check the heatmap and the source before you rely on it.",
+};
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const seen = [];
 let busy = false;
@@ -248,7 +267,7 @@ async function score(blob, name) {
     const r = await fetch("/predict", { method: "POST", body });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || "Request failed");
-    const entry = { name, data, url: URL.createObjectURL(blob), video: (blob.type || "").startsWith("video") };
+    const entry = { name, data, blob, url: URL.createObjectURL(blob), video: (blob.type || "").startsWith("video") };
     seen.unshift(entry);
     show(entry);
     renderHistory();
@@ -268,13 +287,16 @@ function show(entry) {
     return;
   }
   setStatus("", "");
+  current = entry;
+  $("teachmsg").textContent = "Saved only if you click, on this computer only.";
   $("thumb").innerHTML = (entry.video
     ? `<video src="${entry.url}" muted controls playsinline></video>`
     : `<img src="${entry.url}" alt="Scored input">`) + `<p></p>`;
   $("thumb").querySelector("p").textContent = entry.name;
   $("prob").textContent = pct(d.probability);
   $("band").className = "band " + BAND_CLASS[d.band];
-  $("band").textContent = d.band[0].toUpperCase() + d.band.slice(1);
+  $("band").textContent = BAND_TEXT[d.band];
+  $("caveat").textContent = CAVEAT[d.band];
 
   const lo = d.cutoffs.likely_real_below, hi = d.cutoffs.likely_fake_above;
   $("scale").innerHTML =
@@ -283,7 +305,7 @@ function show(entry) {
     `<div style="width:${(1 - hi) * 100}%;background:var(--fake)"></div>`;
   $("marker").style.left = (d.probability * 100) + "%";
 
-  let meta = `Face found in ${d.faces_found} of ${d.frames_read} frame(s) · ${(d.elapsed_ms / 1000).toFixed(1)} s · likely real below ${pct(lo)}, likely manipulated above ${pct(hi)}`;
+  let meta = `Face found in ${d.faces_found} of ${d.frames_read} frame(s) · ${(d.elapsed_ms / 1000).toFixed(1)} s · nothing detected below ${pct(lo)}, likely manipulated above ${pct(hi)}`;
   if (!d.calibrated) meta += " · uncalibrated";
   $("meta").textContent = meta;
 
@@ -302,13 +324,32 @@ function show(entry) {
   $("result").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+// ---------------------------------------------------------------- teaching
+let current = null;
+document.querySelectorAll("[data-teach]").forEach((b) => b.addEventListener("click", async () => {
+  if (!current) return;
+  const label = b.dataset.teach;
+  const body = new FormData();
+  body.append("file", current.blob, /\.[a-z0-9]+$/i.test(current.name) ? current.name : current.name + ".png");
+  body.append("label", label);
+  $("teachmsg").textContent = "Saving...";
+  try {
+    const r = await fetch("/feedback", { method: "POST", body });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Could not save");
+    $("teachmsg").textContent = `Saved as ${label === "fake" ? "a deepfake" : "real"}. ${d.counts.fake} fake and ${d.counts.real} real examples so far. They are used the next time the model is taught.`;
+  } catch (e) {
+    $("teachmsg").textContent = e.message;
+  }
+}));
+
 function renderHistory() {
   $("histcard").hidden = seen.length === 0;
   $("hist").innerHTML = "";
   seen.forEach((h) => {
     const d = h.data, li = document.createElement("li");
     const thumb = h.video ? `<span class="vid"></span>` : `<img src="${h.url}" alt="">`;
-    const tag = d.band ? `<span class="tag ${BAND_CLASS[d.band]}">${d.band}</span>` : `<span class="hint">no face</span>`;
+    const tag = d.band ? `<span class="tag ${BAND_CLASS[d.band]}">${BAND_TEXT[d.band]}</span>` : `<span class="hint">no face</span>`;
     li.innerHTML = `${thumb}<span class="name"></span><span class="p">${d.probability == null ? "" : pct(d.probability)}</span>${tag}`;
     li.querySelector(".name").textContent = h.name;
     li.addEventListener("click", () => show(h));

@@ -99,15 +99,19 @@ def score_split(
     data_root: Path | None = None,
     batch_size: int = 64,
     num_workers: int = 0,
+    keep_left_out: bool = False,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Score the training dataset's split with the run's own filters (used for calibration)."""
+    """Score the training dataset's split with the run's own filters (used for calibration).
+
+    keep_left_out=True keeps the method the run held out, for testing on an unseen method.
+    """
     model, cfg = load_detector(checkpoint)
     t = cfg["train"]
     root = data_root or Path(cfg["data"]["root"])
     df = load_manifest(
         _manifest_path(cfg, t["dataset"], data_root),
         split=split,
-        leave_out_method=t["leave_out_method"],
+        leave_out_method=None if keep_left_out else t["leave_out_method"],
         compressions=t["compressions"],
     )
     if t.get("val", {}).get("sbi_fakes", False):

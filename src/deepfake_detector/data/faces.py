@@ -34,6 +34,24 @@ class FaceDetector(Protocol):
     def detect(self, rgb: np.ndarray) -> list[FaceDetection]: ...
 
 
+PAD_MULTIPLE = 128
+
+
+def pad_to_multiple(rgb: np.ndarray, m: int = PAD_MULTIPLE) -> np.ndarray:
+    """Pad the bottom and right edges with black up to a multiple of m.
+
+    face-alignment switches on cuDNN autotuning in every detect call, and autotuning starts again
+    for each new image size. Photos come in many sizes, which made detection about 15x slower
+    (0.17 vs 3 images/s on DeepFakeFace). Padding leaves few distinct sizes, and padding only
+    the bottom and right keeps every coordinate unchanged.
+    """
+    h, w = rgb.shape[:2]
+    ph, pw = -h % m, -w % m
+    if not ph and not pw:
+        return rgb
+    return cv2.copyMakeBorder(rgb, 0, ph, 0, pw, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+
+
 class SFDDetector:
     """face-alignment SFD detector plus 68-point 2D landmarks."""
 
@@ -49,7 +67,9 @@ class SFDDetector:
         self._fa = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, **kwargs)
 
     def detect(self, rgb: np.ndarray) -> list[FaceDetection]:
-        landmarks, _, boxes = self._fa.get_landmarks_from_image(rgb, return_bboxes=True)
+        landmarks, _, boxes = self._fa.get_landmarks_from_image(
+            pad_to_multiple(rgb), return_bboxes=True
+        )
         if landmarks is None or boxes is None:
             return []
         out = []

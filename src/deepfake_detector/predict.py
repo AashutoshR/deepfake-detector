@@ -112,11 +112,15 @@ class Predictor:
         self.frames = frames
         self.is_vit = cfg["model"].get("arch", "vit") == "vit"
         self.checkpoint_name = f"{Path(checkpoint).parent.name}/{Path(checkpoint).name}"
-        self.model_note: str | None = None
-        if cfg.get("train", {}).get("dataset") == "ffhq":
-            from deepfake_detector.preview import PREVIEW_NOTE
+        from deepfake_detector.preview import NOTES
 
-            self.model_note = PREVIEW_NOTE
+        self.model_note: str | None = NOTES.get(cfg.get("train", {}).get("dataset", ""))
+        taught = cfg.get("train", {}).get("taught")
+        if taught:
+            self.model_note = (self.model_note or "") + (
+                f" Fine-tuned on {taught.get('fake', 0)} fake and {taught.get('real', 0)} real "
+                "examples marked in this demo, so it may simply remember those."
+            )
         if detector is None:
             from deepfake_detector.data.faces import SFDDetector
 

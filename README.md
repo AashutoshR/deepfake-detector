@@ -166,6 +166,37 @@ validation fakes, and writes `runs/preview_ffhq_sbi/PREVIEW.md`. The demo shows 
 it runs: the preview model has never seen a real deepfake and is not tested on any deepfake
 benchmark, so it is never released as the project model.
 
+A second preview adds real fakes that need no access request. DeepFakeFace (OpenRAIL, on the
+Hugging Face hub) pairs 30,000 IMDB-WIKI celebrity photos with an InsightFace face swap, a
+Stable Diffusion inpainting and a text-to-image fake of each:
+
+```bash
+python -m deepfake_detector.preview all --source dff --every 6 --epochs 8
+```
+
+`--every 6` keeps one person in six (about 15,000 images to crop). The model trains on the face swaps
+and inpaintings plus self-blended fakes, splits by person, and keeps the text-to-image fakes
+unseen as a cross-generator test; results go to `runs/preview_dff/PREVIEW.md`. It is still a
+preview: it has not been tested on a video deepfake benchmark, and polished or heavily
+re-encoded deepfakes can still get past it. The demo therefore reports a low score as "No
+manipulation detected", never as "real".
+
+### Teaching the model with your own examples
+
+When the demo gets a file wrong, the buttons under the result ("It is a deepfake" / "It is
+real") save that one file under `data/feedback/` on this computer; nothing is saved unless you
+click. Then:
+
+```bash
+python -m deepfake_detector.teach            # fine-tunes a copy of runs/preview_dff/best.pt
+python scripts/demo.py                       # picks up runs/preview_dff_taught/best.pt
+```
+
+The marked examples are repeated and mixed with a sample of the original training data so the
+model does not forget it. The copy is kept only if validation AUC drops by at most 0.01, and it
+is recalibrated before use. A model taught on a few files learns those files: it will catch the
+same video again, but that says nothing about other deepfakes.
+
 ## Release
 
 ```bash

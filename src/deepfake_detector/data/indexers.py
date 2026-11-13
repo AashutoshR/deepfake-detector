@@ -20,6 +20,10 @@ DFDC subset (root = data/raw/dfdc), made by scripts/get_data.py dfdc
 FFHQ real faces for the preview model (root = data/raw/ffhq), made by the preview tool
     real/<id>.jpg        one face photo per file; split by id (90% train, 5% val, 5% test)
 
+DeepFakeFace for the second preview model (root = data/raw/dff), made by the preview tool
+    wiki/<xx>/<person>_<birth>_<year>.jpg              real photos from IMDB-WIKI
+    insight/ inpainting/ text2img/ <same names>         fakes made from those photos
+
 Any other test set (DeeperForensics-1.0, WildDeepfake, DF40), root = data/raw/<dataset>
     real/**              videos, images, or folders of frames (one folder = one sequence)
     fake/<method>/**     the same; <method> names the fake-making method
@@ -28,6 +32,7 @@ Any other test set (DeeperForensics-1.0, WildDeepfake, DF40), root = data/raw/<d
 from __future__ import annotations
 
 import json
+import zlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -200,6 +205,36 @@ def index_ffhq(root: str | Path) -> list[VideoRecord]:
     return records
 
 
+DFF_FOLDERS = {"wiki": "real", "insight": "insight", "inpainting": "inpainting",
+               "text2img": "text2img"}  # fmt: skip
+
+
+def dff_split(person: str) -> str:
+    """Split DeepFakeFace by person id so no person is in two splits (90 / 5 / 5)."""
+    n = int(person) if person.isdigit() else zlib.crc32(person.encode())
+    return {0: "val", 1: "test"}.get(n % 20, "train")
+
+
+def index_dff(root: str | Path) -> list[VideoRecord]:
+    """Index DeepFakeFace: real IMDB-WIKI photos and three fakes made from the same photos.
+
+    Every file is <folder>/<xx>/<person>_<birth>_<year>.jpg and the fakes reuse the real photo's
+    name, so a real photo and its fakes always share one split.
+    """
+    root = Path(root)
+    records = []
+    for folder, method in DFF_FOLDERS.items():
+        label = REAL if method == "real" else FAKE
+        for p in sorted((root / folder).glob("*/*.jpg")):
+            person = p.stem.split("_")[0]
+            vid = f"{folder}/{p.parent.name}/{p.stem}"
+            records.append(
+                VideoRecord(p, vid, label, method, "dff", dff_split(person), "na",
+                            (f"dff:{person}",))
+            )  # fmt: skip
+    return records
+
+
 INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "ffpp": index_ffpp,
     "celebdf_v2": index_celebdf,
@@ -208,4 +243,5 @@ INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "wilddeepfake": lambda root: index_folders(root, "wilddeepfake"),
     "df40": lambda root: index_folders(root, "df40"),
     "ffhq": index_ffhq,
+    "dff": index_dff,
 }

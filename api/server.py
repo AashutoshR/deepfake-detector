@@ -2,7 +2,9 @@
 
 Runs on localhost only. Each upload is written to a private temporary file, scored, and deleted
 straight after, whatever happens (FR-I5). Nothing about uploads is stored or logged: no file
-names, no contents, no scores.
+names, no contents, no scores. The one exception is opt-in: "Teach the model" in the page sends
+that one file to /feedback, which keeps it under data/feedback/ on this computer for
+python -m deepfake_detector.teach.
 
     python scripts/demo.py                       # newest trained model, opens the browser
     python scripts/demo.py --checkpoint runs/<run>/best.pt
@@ -18,7 +20,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -112,6 +114,26 @@ def create_app(predictor: Predictor | None = None) -> FastAPI:
             "note": "Synthetic test image: your face blended with a slightly changed copy of "
             "itself. Not stored.",
         }
+
+    @app.post("/feedback")
+    async def feedback(file: UploadFile, label: str = Form(...)) -> dict[str, Any]:
+        """Keep one file the user marked as real or fake, for teaching the model later.
+
+        Only this endpoint stores anything, and only when the user asks for it.
+        """
+        from deepfake_detector.teach import FEEDBACK_ROOT, example_counts, save_example
+
+        _check_suffix(file, ALLOWED)
+        if label not in ("real", "fake"):
+            raise HTTPException(422, "label must be real or fake")
+        data = await file.read(MAX_BYTES + 1)
+        await file.close()
+        if len(data) > MAX_BYTES:
+            raise HTTPException(413, f"File too large (limit {MAX_BYTES >> 20} MB).")
+        suffix = Path(file.filename or "").suffix.lower()
+        root = Path(os.environ.get("DFD_FEEDBACK_DIR", FEEDBACK_ROOT))
+        await run_in_threadpool(save_example, data, suffix, label, root)
+        return {"saved": True, "counts": example_counts(root)}
 
     return app
 
