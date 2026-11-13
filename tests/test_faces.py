@@ -42,3 +42,25 @@ def test_crop_face_pads_outside_image() -> None:
     assert lm_out is None
     assert crop[:20, :20].max() == 0  # top-left corner lies outside the image
     assert crop[60:, 60:].min() == 255
+
+
+def test_sfd_detector_turns_off_torch_compile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """face-alignment 1.5+ compiles with Triton, which Windows lacks; compile must be off."""
+    import sys
+    import types
+
+    seen: dict[str, object] = {}
+
+    class FakeFA:
+        def __init__(
+            self, landmarks_type: int, face_detector: str = "sfd", device: str = "cuda",
+            compile: bool = True,
+        ) -> None:  # fmt: skip
+            seen.update(face_detector=face_detector, device=device, compile=compile)
+
+    fake = types.SimpleNamespace(FaceAlignment=FakeFA, LandmarksType=types.SimpleNamespace(TWO_D=1))
+    monkeypatch.setitem(sys.modules, "face_alignment", fake)
+    from deepfake_detector.data.faces import SFDDetector
+
+    SFDDetector(device="cpu")
+    assert seen == {"face_detector": "sfd", "device": "cpu", "compile": False}

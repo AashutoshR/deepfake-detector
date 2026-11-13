@@ -112,6 +112,11 @@ class Predictor:
         self.frames = frames
         self.is_vit = cfg["model"].get("arch", "vit") == "vit"
         self.checkpoint_name = f"{Path(checkpoint).parent.name}/{Path(checkpoint).name}"
+        self.model_note: str | None = None
+        if cfg.get("train", {}).get("dataset") == "ffhq":
+            from deepfake_detector.preview import PREVIEW_NOTE
+
+            self.model_note = PREVIEW_NOTE
         if detector is None:
             from deepfake_detector.data.faces import SFDDetector
 
@@ -181,9 +186,30 @@ class Predictor:
             top = int(np.argmax(probs))  # the frame the model finds most suspicious
             heat = attention_rollout(self.model, x[top : top + 1])[0]
             result.heatmap_frame = idxs[top]
-            result.heatmap_png_base64 = _png_base64(overlay(crops[top], heat))
+            result.heatmap_png_base64 = png_base64(overlay(crops[top], heat))
         result.elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
         return result
+
+    def make_test_fake(
+        self, path: str | Path, seed: int | None = None, max_side: int = 1024
+    ) -> tuple[np.ndarray, np.ndarray] | None:
+        """Self-blend the main face of a photo with a changed copy of itself (same person, no
+        identity change) to get a synthetic fake for trying the detector.
+
+        Returns (original, blended) as RGB arrays, or None when no face is found.
+        """
+        from deepfake_detector.data.sbi import self_blend
+        from deepfake_detector.preview import shrink
+
+        media = read_media(path, 1)
+        if not media:
+            return None
+        rgb = shrink(media[0][1], max_side)
+        face = select_main_face(self.detector.detect(rgb), None)
+        if face is None or face.landmarks is None:
+            return None
+        blended, _ = self_blend(rgb, face.landmarks, np.random.default_rng(seed))
+        return rgb, blended
 
 
 def _video_score(probs: np.ndarray, how: str, k: int = 8) -> float:
@@ -194,7 +220,7 @@ def _video_score(probs: np.ndarray, how: str, k: int = 8) -> float:
     return float(np.mean(probs))
 
 
-def _png_base64(rgb: np.ndarray) -> str:
+def png_base64(rgb: np.ndarray) -> str:
     ok, buf = cv2.imencode(".png", cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
     assert ok
     return base64.b64encode(buf.tobytes()).decode("ascii")
@@ -223,6 +249,8 @@ def main(argv: list[str] | None = None) -> None:
         out["heatmap_saved_to"] = str(args.heatmap)
     if not predictor.calibrated:
         out["warning"] = "no calibration.json next to the checkpoint; scores are uncalibrated"
+    if predictor.model_note:
+        out["model_note"] = predictor.model_note
     print(json.dumps(out, indent=2))
 
 

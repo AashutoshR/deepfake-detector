@@ -6,71 +6,154 @@
 <title>Deepfake Detector</title>
 <style>
   :root {
-    --bg: #f7f7f5; --card: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e3e3de;
-    --accent: #3a5bd9; --dash: #c4c4bc; --real: #2f8a57; --unsure: #b7791f; --fake: #c2412d;
+    --bg: #f6f6f3; --card: #ffffff; --text: #1b1b19; --muted: #67675f; --line: #e2e2dc;
+    --soft: #efefea; --accent: #3a5bd9; --accent-text: #ffffff; --dash: #c4c4bc;
+    --real: #2f8a57; --unsure: #b7791f; --fake: #c2412d; --warn-bg: #fff6e5; --warn-line: #e8c27a;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #151514; --card: #1e1e1c; --text: #ececea; --muted: #a0a09a; --line: #333330;
-      --accent: #7d97ff; --dash: #55554f; --real: #5cc48b; --unsure: #e0a94a; --fake: #ff7a63;
+      --bg: #141413; --card: #1d1d1b; --text: #ecece9; --muted: #a2a29b; --line: #32322f;
+      --soft: #262624; --accent: #7d97ff; --accent-text: #10131f; --dash: #55554f;
+      --real: #5cc48b; --unsure: #e0a94a; --fake: #ff7a63; --warn-bg: #2a2416; --warn-line: #6e5626;
     }
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 24px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 28px 16px 56px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dash); }
+  .dot.on { background: var(--real); } .dot.off { background: var(--fake); }
+  .banner { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; display: none; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-  .drop {
-    display: block; border: 2px dashed var(--dash); border-radius: 10px; padding: 32px 16px; text-align: center;
-    cursor: pointer; transition: border-color .15s;
-  }
+  .tabs { display: flex; gap: 4px; background: var(--soft); border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+  .tabs button { flex: 1; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 8px 6px; border-radius: 7px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .panel[hidden] { display: none; }
+  .drop { display: block; border: 2px dashed var(--dash); border-radius: 10px; padding: 32px 16px; text-align: center; cursor: pointer; transition: border-color .15s; }
   .drop:hover, .drop.over { border-color: var(--accent); }
   .drop input { display: none; }
   .drop strong { color: var(--accent); }
   .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
-  .status { margin-top: 12px; color: var(--muted); min-height: 1.5em; }
-  .error { color: var(--fake); }
+  .btn { border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .cam { width: 100%; max-height: 360px; background: #000; border-radius: 10px; display: none; object-fit: contain; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .pair[hidden] { display: none; }
+  .pair figure { margin: 0; }
+  .pair img { width: 100%; border-radius: 8px; display: block; background: var(--soft); }
+  .pair figcaption { font-size: 13px; color: var(--muted); margin: 6px 0; }
+  .status { margin-top: 12px; color: var(--muted); min-height: 1.5em; display: flex; align-items: center; gap: 8px; }
+  .status.error { color: var(--fake); }
+  .spin { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+  .busy .spin { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .result { display: none; }
-  .top { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
-  .score { flex: 1 1 260px; }
+  .top { display: grid; grid-template-columns: 150px 1fr 200px; gap: 20px; align-items: start; }
+  .thumb img, .thumb video { width: 150px; height: 150px; object-fit: cover; border-radius: 8px; background: var(--soft); display: block; }
+  .thumb p { font-size: 12px; color: var(--muted); margin: 6px 0 0; word-break: break-all; }
   .big { font-size: 44px; font-weight: 650; line-height: 1.1; }
   .band { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-weight: 600; color: #fff; }
   .band.real { background: var(--real); } .band.uncertain { background: var(--unsure); } .band.fake { background: var(--fake); }
-  .scale { position: relative; height: 10px; border-radius: 5px; margin: 18px 0 6px; overflow: hidden; display: flex; }
+  .scale { height: 10px; border-radius: 5px; margin: 18px 0 6px; overflow: hidden; display: flex; }
   .scale div { height: 100%; }
   .marker { position: relative; height: 0; }
-  .marker span { position: absolute; top: -20px; width: 2px; height: 14px; background: var(--text); transform: translateX(-1px); }
+  .marker span { position: absolute; top: -20px; width: 3px; height: 14px; background: var(--text); transform: translateX(-1px); border-radius: 1px; }
   .ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
-  .heat { flex: 0 0 auto; text-align: center; }
   .heat img { width: 200px; height: 200px; border-radius: 8px; display: block; }
-  .heat p { color: var(--muted); font-size: 12px; margin: 6px 0 0; max-width: 200px; }
-  h2 { font-size: 15px; margin: 0 0 10px; }
-  svg { width: 100%; height: auto; display: block; }
+  .heat p { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
   .meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
-  .note { border-left: 3px solid var(--unsure); padding: 8px 12px; background: var(--card); border-radius: 0 8px 8px 0; color: var(--text); }
+  svg { width: 100%; height: auto; display: block; }
+  .note { border-left: 3px solid var(--unsure); padding: 8px 12px; background: var(--card); border-radius: 0 8px 8px 0; margin: 0 0 16px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details ul { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
+  .hist { list-style: none; margin: 0; padding: 0; }
+  .hist li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .hist li:first-child { border-top: 0; }
+  .hist img, .hist .vid { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; background: var(--soft); flex: none; }
+  .hist .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hist .p { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
+  .tag.real { background: var(--real); } .tag.uncertain { background: var(--unsure); } .tag.fake { background: var(--fake); }
+  @media (max-width: 720px) {
+    .top { grid-template-columns: 1fr; }
+    .thumb img, .thumb video { width: 100%; height: auto; max-height: 260px; object-fit: contain; }
+    .heat img { width: 100%; height: auto; max-width: 260px; }
+    .pair { grid-template-columns: 1fr; }
+    .hist .tag { display: none; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <h1>Deepfake Detector</h1>
-  <p class="sub">Upload a face video or image to get an estimated chance that it was manipulated. Runs only on this computer.</p>
+  <header>
+    <div>
+      <h1>Deepfake Detector</h1>
+      <p class="sub">Estimated chance that a face video or photo was manipulated. Runs only on this computer.</p>
+    </div>
+    <span class="pill"><span class="dot" id="dot"></span><span id="healthtext">Checking model...</span></span>
+  </header>
+
+  <div class="banner" id="banner"></div>
 
   <div class="card">
-    <label class="drop" id="drop">
-      <input type="file" id="file" accept="video/*,image/*">
-      <div><strong>Choose a file</strong> or drop it here</div>
-      <div class="hint">Video (mp4, mov, avi, mkv, webm) or image (jpg, png, webp), up to 200 MB. Deleted right after scoring.</div>
-    </label>
-    <div class="status" id="status"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="upload">Upload</button>
+      <button role="tab" aria-selected="false" data-tab="camera">Camera</button>
+      <button role="tab" aria-selected="false" data-tab="fake">Make a test fake</button>
+    </div>
+
+    <section class="panel" id="panel-upload">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="video/*,image/*">
+        <div><strong>Choose a file</strong> or drop it here</div>
+        <div class="hint">Video (mp4, mov, avi, mkv, webm) or photo (jpg, png, webp), up to 200 MB. Deleted right after scoring.</div>
+      </label>
+    </section>
+
+    <section class="panel" id="panel-camera" hidden>
+      <video class="cam" id="cam" autoplay playsinline muted></video>
+      <div class="row">
+        <button class="btn primary" id="camstart">Start camera</button>
+        <button class="btn" id="camsnap" disabled>Take photo and score</button>
+        <button class="btn" id="camstop" disabled>Stop camera</button>
+      </div>
+      <div class="hint">The photo goes only to the detector on this computer and is deleted after scoring.</div>
+    </section>
+
+    <section class="panel" id="panel-fake" hidden>
+      <p class="sub" style="margin-bottom:12px">No deepfake at hand? Pick a photo of a face. The detector's training trick makes a synthetic fake from it: the face is blended with a slightly changed copy of itself, leaving the kind of seam that face swaps leave. Then score both and compare.</p>
+      <label class="drop" id="fakedrop">
+        <input type="file" id="fakefile" accept="image/*">
+        <div><strong>Choose a face photo</strong> or drop it here</div>
+        <div class="hint">jpg, png or webp, up to 25 MB. Nothing is kept.</div>
+      </label>
+      <div class="pair" id="pair" hidden>
+        <figure>
+          <figcaption>Original</figcaption>
+          <img id="pairorig" alt="Original photo">
+          <div class="row"><button class="btn" id="scoreorig">Score original</button></div>
+        </figure>
+        <figure>
+          <figcaption>Self-blended test fake</figcaption>
+          <img id="pairfake" alt="Synthetic self-blended version of the photo">
+          <div class="row"><button class="btn primary" id="scorefake">Score test fake</button><button class="btn" id="reblend">Blend again</button></div>
+        </figure>
+      </div>
+    </section>
+
+    <div class="status" id="status"><span class="spin"></span><span id="statustext"></span></div>
   </div>
 
   <div class="result" id="result">
     <div class="card top">
-      <div class="score">
+      <div class="thumb" id="thumb"></div>
+      <div>
         <div class="hint">Estimated chance of manipulation</div>
         <div class="big" id="prob">-</div>
         <div class="band" id="band">-</div>
@@ -81,7 +164,7 @@
       </div>
       <div class="heat" id="heatwrap">
         <img id="heat" alt="Attention heatmap over the most suspicious face crop">
-        <p id="heatcap">Where the model looked on the most suspicious frame. A hint, not evidence.</p>
+        <p id="heatcap"></p>
       </div>
     </div>
 
@@ -92,48 +175,105 @@
 
     <p class="note" id="note"></p>
   </div>
+
+  <div class="card" id="histcard" hidden>
+    <h2>This session</h2>
+    <ul class="hist" id="hist"></ul>
+    <div class="hint">Kept in this browser tab only and gone when you close it.</div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>How to read the result</summary>
+      <ul>
+        <li>The percentage is the model's calibrated estimate that the face was manipulated. It is not proof either way.</li>
+        <li>Three bands instead of a verdict: likely real, uncertain, likely manipulated. The cut-offs were set on validation data, and the uncertain band never shrinks to nothing.</li>
+        <li>A low score means "not detected by this model", never "real". New face-swap tools, heavy compression and very small faces all lower accuracy.</li>
+        <li>The heatmap shows where the model looked on the most suspicious frame. It is a hint for a human reviewer, not evidence.</li>
+        <li>Only the largest face is scored. Frames without a detectable face are skipped.</li>
+      </ul>
+    </details>
+  </div>
 </main>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const pct = (x) => (x * 100).toFixed(1) + "%";
-const drop = $("drop"), input = $("file");
+const BAND_CLASS = { "likely real": "real", "uncertain": "uncertain", "likely manipulated": "fake" };
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const seen = [];
+let busy = false;
 
-["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (ev) => { if (ev.dataTransfer.files[0]) send(ev.dataTransfer.files[0]); });
-input.addEventListener("change", () => { if (input.files[0]) send(input.files[0]); });
+// ---------------------------------------------------------------- model status
+fetch("/health").then((r) => r.json()).then((h) => {
+  if (!h.model_loaded) {
+    $("dot").className = "dot off";
+    $("healthtext").textContent = "Model loads on first use";
+    return;
+  }
+  $("dot").className = "dot on";
+  $("healthtext").textContent = `${h.model} · ${h.device === "cuda" ? "GPU" : "CPU"}${h.calibrated ? "" : " · uncalibrated"}`;
+  if (h.model_note) { $("banner").textContent = h.model_note; $("banner").style.display = "block"; }
+}).catch(() => { $("dot").className = "dot off"; $("healthtext").textContent = "Server not reachable"; });
 
-async function send(file) {
-  $("result").style.display = "none";
-  $("status").className = "status";
-  $("status").textContent = "Finding faces and scoring frames...";
+// ---------------------------------------------------------------- tabs
+document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-tab]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+  document.querySelectorAll(".panel").forEach((p) => { p.hidden = p.id !== "panel-" + b.dataset.tab; });
+  if (b.dataset.tab !== "camera") stopCamera();
+}));
+
+function dropZone(zone, input, onFile) {
+  ["dragenter", "dragover"].forEach((e) => zone.addEventListener(e, (ev) => { ev.preventDefault(); zone.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((e) => zone.addEventListener(e, (ev) => { ev.preventDefault(); zone.classList.remove("over"); }));
+  zone.addEventListener("drop", (ev) => { if (ev.dataTransfer.files[0]) onFile(ev.dataTransfer.files[0]); });
+  input.addEventListener("change", () => { if (input.files[0]) onFile(input.files[0]); input.value = ""; });
+}
+
+function setStatus(text, kind) {
+  $("status").className = "status" + (kind === "busy" ? " busy" : kind === "error" ? " error" : "");
+  $("statustext").textContent = text;
+}
+
+// ---------------------------------------------------------------- scoring
+dropZone($("drop"), $("file"), (f) => score(f, f.name));
+
+async function score(blob, name) {
+  if (busy) return;
+  busy = true;
+  setStatus("Finding faces and scoring frames...", "busy");
   const body = new FormData();
-  body.append("file", file);
+  body.append("file", blob, /\.[a-z0-9]+$/i.test(name) ? name : name + ".png");
   try {
     const r = await fetch("/predict", { method: "POST", body });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || "Request failed");
-    show(data);
+    const entry = { name, data, url: URL.createObjectURL(blob), video: (blob.type || "").startsWith("video") };
+    seen.unshift(entry);
+    show(entry);
+    renderHistory();
   } catch (e) {
-    $("status").className = "status error";
-    $("status").textContent = e.message;
+    setStatus(e.message, "error");
   } finally {
-    input.value = "";
+    busy = false;
   }
 }
 
-function show(d) {
+function show(entry) {
+  const d = entry.data;
   $("note").textContent = d.note;
   if (d.status === "no_face") {
-    $("status").className = "status error";
-    $("status").textContent = `No face found in ${d.frames_read} frame(s), so there is nothing to score.`;
+    $("result").style.display = "none";
+    setStatus(`No face found in ${d.frames_read} frame(s) of ${entry.name}, so there is nothing to score.`, "error");
     return;
   }
-  $("status").textContent = "";
+  setStatus("", "");
+  $("thumb").innerHTML = (entry.video
+    ? `<video src="${entry.url}" muted controls playsinline></video>`
+    : `<img src="${entry.url}" alt="Scored input">`) + `<p></p>`;
+  $("thumb").querySelector("p").textContent = entry.name;
   $("prob").textContent = pct(d.probability);
-  const cls = { "likely real": "real", "uncertain": "uncertain", "likely manipulated": "fake" }[d.band];
-  $("band").className = "band " + cls;
+  $("band").className = "band " + BAND_CLASS[d.band];
   $("band").textContent = d.band[0].toUpperCase() + d.band.slice(1);
 
   const lo = d.cutoffs.likely_real_below, hi = d.cutoffs.likely_fake_above;
@@ -143,13 +283,15 @@ function show(d) {
     `<div style="width:${(1 - hi) * 100}%;background:var(--fake)"></div>`;
   $("marker").style.left = (d.probability * 100) + "%";
 
-  let meta = `Faces found in ${d.faces_found} of ${d.frames_read} frame(s) · ${(d.elapsed_ms / 1000).toFixed(1)} s · model ${d.model}`;
+  let meta = `Face found in ${d.faces_found} of ${d.frames_read} frame(s) · ${(d.elapsed_ms / 1000).toFixed(1)} s · likely real below ${pct(lo)}, likely manipulated above ${pct(hi)}`;
   if (!d.calibrated) meta += " · uncalibrated";
   $("meta").textContent = meta;
 
   if (d.heatmap_png_base64) {
     $("heat").src = "data:image/png;base64," + d.heatmap_png_base64;
-    $("heatcap").textContent = `Where the model looked on frame ${d.heatmap_frame}, the most suspicious one. A hint, not evidence.`;
+    $("heatcap").textContent = d.frame_scores.length > 1
+      ? `Where the model looked on frame ${d.heatmap_frame}, the most suspicious one. A hint, not evidence.`
+      : "Where the model looked. A hint, not evidence.";
     $("heatwrap").style.display = "";
   } else {
     $("heatwrap").style.display = "none";
@@ -157,6 +299,21 @@ function show(d) {
   $("framecard").style.display = d.frame_scores.length > 1 ? "" : "none";
   chart(d.frames, d.frame_scores, lo, hi);
   $("result").style.display = "block";
+  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderHistory() {
+  $("histcard").hidden = seen.length === 0;
+  $("hist").innerHTML = "";
+  seen.forEach((h) => {
+    const d = h.data, li = document.createElement("li");
+    const thumb = h.video ? `<span class="vid"></span>` : `<img src="${h.url}" alt="">`;
+    const tag = d.band ? `<span class="tag ${BAND_CLASS[d.band]}">${d.band}</span>` : `<span class="hint">no face</span>`;
+    li.innerHTML = `${thumb}<span class="name"></span><span class="p">${d.probability == null ? "" : pct(d.probability)}</span>${tag}`;
+    li.querySelector(".name").textContent = h.name;
+    li.addEventListener("click", () => show(h));
+    $("hist").appendChild(li);
+  });
 }
 
 function chart(frames, scores, lo, hi) {
@@ -164,7 +321,6 @@ function chart(frames, scores, lo, hi) {
   const n = scores.length;
   const x = (i) => L + (n > 1 ? (i / (n - 1)) * (W - L - R) : (W - L - R) / 2);
   const y = (v) => T + (1 - v) * (H - T - B);
-  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   let s = "";
   [[0, lo, "--real"], [lo, hi, "--unsure"], [hi, 1, "--fake"]].forEach(([a, b, c]) => {
     s += `<rect x="${L}" y="${y(b)}" width="${W - L - R}" height="${y(a) - y(b)}" fill="${css(c)}" opacity="0.10"/>`;
@@ -178,6 +334,65 @@ function chart(frames, scores, lo, hi) {
   scores.forEach((v, i) => { s += `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${css("--accent")}"><title>frame ${frames[i]}: ${pct(v)}</title></circle>`; });
   s += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" font-size="11" fill="${css("--muted")}">frames analysed (in video order)</text>`;
   $("chart").innerHTML = s;
+}
+
+// ---------------------------------------------------------------- camera
+let stream = null;
+$("camstart").addEventListener("click", async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+    $("cam").srcObject = stream;
+    $("cam").style.display = "block";
+    $("camsnap").disabled = false; $("camstop").disabled = false; $("camstart").disabled = true;
+    setStatus("", "");
+  } catch (e) {
+    setStatus("Camera not available: " + e.message, "error");
+  }
+});
+$("camstop").addEventListener("click", stopCamera);
+function stopCamera() {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null;
+  $("cam").style.display = "none";
+  $("camsnap").disabled = true; $("camstop").disabled = true; $("camstart").disabled = false;
+}
+$("camsnap").addEventListener("click", () => {
+  const v = $("cam"), c = document.createElement("canvas");
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v, 0, 0);
+  c.toBlob((b) => score(b, `camera ${new Date().toLocaleTimeString().replace(/:/g, "-")}.png`), "image/png");
+});
+
+// ---------------------------------------------------------------- test fake
+let fakeSource = null, fakeBlob = null, origBlob = null;
+dropZone($("fakedrop"), $("fakefile"), (f) => { fakeSource = f; makeFake(); });
+$("reblend").addEventListener("click", () => fakeSource && makeFake());
+$("scoreorig").addEventListener("click", () => origBlob && score(origBlob, "original " + fakeSource.name.replace(/\.[^.]+$/, "") + ".png"));
+$("scorefake").addEventListener("click", () => fakeBlob && score(fakeBlob, "test fake " + fakeSource.name.replace(/\.[^.]+$/, "") + ".png"));
+
+const b64blob = (b64) => fetch("data:image/png;base64," + b64).then((r) => r.blob());
+
+async function makeFake() {
+  if (busy) return;
+  busy = true;
+  setStatus("Finding the face and blending it...", "busy");
+  const body = new FormData();
+  body.append("file", fakeSource);
+  try {
+    const r = await fetch("/test-fake", { method: "POST", body });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "Request failed");
+    origBlob = await b64blob(data.original_png_base64);
+    fakeBlob = await b64blob(data.blended_png_base64);
+    $("pairorig").src = URL.createObjectURL(origBlob);
+    $("pairfake").src = URL.createObjectURL(fakeBlob);
+    $("pair").hidden = false;
+    setStatus(data.note, "");
+  } catch (e) {
+    setStatus(e.message, "error");
+  } finally {
+    busy = false;
+  }
 }
 </script>
 </body>

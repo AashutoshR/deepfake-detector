@@ -133,14 +133,38 @@ cleanly, so a score near the middle never gets a confident label.
 The demo page runs on this computer only:
 
 ```bash
-set DFD_CHECKPOINT=runs\<run>\best.pt
-uvicorn api.server:app --host 127.0.0.1 --port 8000
+python scripts/demo.py                                  # newest model under runs/, opens the browser
+python scripts/demo.py --checkpoint runs/<run>/best.pt
 ```
 
-Open http://127.0.0.1:8000, then drop in a video or image. It shows the score, band, a score
-for every frame, and an attention heatmap on the most suspicious face. Each upload is deleted
-straight after scoring, and nothing about it is stored or logged. Without a GPU it runs on the
-CPU, more slowly.
+It has three ways in:
+
+- **Upload** a video or photo.
+- **Camera**: take a photo with the webcam and score it.
+- **Make a test fake**: pick a face photo and the server blends the face with a slightly changed
+  copy of itself (the same self-blending used in training, so the identity never changes). Score
+  the original and the test fake side by side to see the detector react.
+
+Each result shows the score, the band on a colored scale, a score for every frame, an attention
+heatmap on the most suspicious face, and a list of this session's results kept in the browser
+tab only. Each upload is deleted straight after scoring, and nothing about it is stored or
+logged. Without a GPU it runs on the CPU, more slowly.
+
+### Preview model (works before any deepfake dataset arrives)
+
+Self-blended training needs only real faces, so a preview detector can be trained on public
+real photos alone:
+
+```bash
+python -m deepfake_detector.preview all --shards 8     # about 25 min download, 30 min GPU
+python scripts/demo.py
+```
+
+This downloads 8,000 FFHQ photos (CC BY-NC-SA 4.0) from the Hugging Face hub, preprocesses them
+with the same face pipeline, trains on self-blended fakes only, calibrates on fixed self-blended
+validation fakes, and writes `runs/preview_ffhq_sbi/PREVIEW.md`. The demo shows a banner while
+it runs: the preview model has never seen a real deepfake and is not tested on any deepfake
+benchmark, so it is never released as the project model.
 
 ## Release
 

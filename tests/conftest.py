@@ -40,3 +40,19 @@ def video(tmp_path: Path) -> Path:
     p = tmp_path / "clip.mp4"
     write_video(p, 40)
     return p
+
+
+@pytest.fixture(scope="session")
+def checkpoint(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A tiny trained ViT run with a calibration file, shared by the predictor tests."""
+    from deepfake_detector.calibrate import Calibration
+    from deepfake_detector.train import train
+    from tests.test_train import build_dataset, tiny_cfg
+
+    root = tmp_path_factory.mktemp("pred") / "data"
+    build_dataset(root)
+    run = Path(train(tiny_cfg(root, "train.epochs=1"), pretrained_weights=False)["run_dir"])
+    Calibration(temperature=2.0, likely_real_below=0.4, likely_fake_above=0.6).save(
+        run / "calibration.json"
+    )
+    return run / "best.pt"

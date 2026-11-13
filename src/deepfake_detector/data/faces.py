@@ -6,6 +6,7 @@ everywhere (FR-D6).
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -40,9 +41,12 @@ class SFDDetector:
         import face_alignment
 
         self.min_score = min_score
-        self._fa = face_alignment.FaceAlignment(
-            face_alignment.LandmarksType.TWO_D, face_detector="sfd", device=device
-        )
+        kwargs: dict[str, object] = {"face_detector": "sfd", "device": device}
+        if "compile" in inspect.signature(face_alignment.FaceAlignment).parameters:
+            # face-alignment 1.5+ compiles its network with torch.compile, which needs Triton;
+            # Triton is not available on Windows, so the first call would crash.
+            kwargs["compile"] = False
+        self._fa = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, **kwargs)
 
     def detect(self, rgb: np.ndarray) -> list[FaceDetection]:
         landmarks, _, boxes = self._fa.get_landmarks_from_image(rgb, return_bboxes=True)

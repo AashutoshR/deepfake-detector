@@ -17,6 +17,9 @@ DFDC subset (root = data/raw/dfdc), made by scripts/get_data.py dfdc
     videos/<name>.mp4
     metadata.json        {"<name>.mp4": {"label": "REAL" | "FAKE", "original": ...}}
 
+FFHQ real faces for the preview model (root = data/raw/ffhq), made by the preview tool
+    real/<id>.jpg        one face photo per file; split by id (90% train, 5% val, 5% test)
+
 Any other test set (DeeperForensics-1.0, WildDeepfake, DF40), root = data/raw/<dataset>
     real/**              videos, images, or folders of frames (one folder = one sequence)
     fake/<method>/**     the same; <method> names the fake-making method
@@ -185,6 +188,18 @@ def index_folders(root: str | Path, dataset: str, split: str = "test") -> list[V
     return records
 
 
+def index_ffhq(root: str | Path) -> list[VideoRecord]:
+    """Index FFHQ real photos for the self-blended preview model (real only; every fake is made
+    during training). Each photo is its own person and its own one-frame "video"."""
+    records = []
+    for p in sorted((Path(root) / "real").glob("*.jpg")):
+        n = int(p.stem) if p.stem.isdigit() else sum(map(ord, p.stem))
+        split = {0: "val", 1: "test"}.get(n % 20, "train")
+        vid = f"real/{p.stem}"
+        records.append(VideoRecord(p, vid, REAL, "real", "ffhq", split, "na", (f"ffhq:{p.stem}",)))
+    return records
+
+
 INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "ffpp": index_ffpp,
     "celebdf_v2": index_celebdf,
@@ -192,4 +207,5 @@ INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "deeperforensics": lambda root: index_folders(root, "deeperforensics"),
     "wilddeepfake": lambda root: index_folders(root, "wilddeepfake"),
     "df40": lambda root: index_folders(root, "df40"),
+    "ffhq": index_ffhq,
 }

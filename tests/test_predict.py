@@ -10,7 +10,6 @@ import torch
 from api.server import create_app
 from fastapi.testclient import TestClient
 
-from deepfake_detector.calibrate import Calibration
 from deepfake_detector.explain import attention_rollout, overlay
 from deepfake_detector.models import build_model
 from deepfake_detector.predict import (
@@ -23,9 +22,7 @@ from deepfake_detector.predict import (
     main,
     to_band,
 )
-from deepfake_detector.train import train
 from tests.conftest import FixedDetector, write_video
-from tests.test_train import build_dataset, tiny_cfg
 
 
 @pytest.mark.parametrize(
@@ -91,17 +88,6 @@ def test_overlay() -> None:
 
 
 # ----------------------------------------------------------------------------- predictor, CLI, API
-
-
-@pytest.fixture(scope="module")
-def checkpoint(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    root = tmp_path_factory.mktemp("pred") / "data"
-    build_dataset(root)
-    run = Path(train(tiny_cfg(root, "train.epochs=1"), pretrained_weights=False)["run_dir"])
-    Calibration(temperature=2.0, likely_real_below=0.4, likely_fake_above=0.6).save(
-        run / "calibration.json"
-    )
-    return run / "best.pt"
 
 
 @pytest.fixture(scope="module")

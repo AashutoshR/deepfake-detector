@@ -34,7 +34,11 @@ from sklearn.metrics import roc_curve  # noqa: E402
 from torch.utils.data import DataLoader  # noqa: E402
 
 from deepfake_detector.calibrate import Calibration  # noqa: E402
-from deepfake_detector.data.datasets import FaceCropDataset, load_manifest  # noqa: E402
+from deepfake_detector.data.datasets import (  # noqa: E402
+    FaceCropDataset,
+    add_sbi_copies,
+    load_manifest,
+)
 from deepfake_detector.data.extract import sample_indices  # noqa: E402
 from deepfake_detector.data.perturb import PerturbTransform  # noqa: E402
 from deepfake_detector.inference import load_detector, predict_frames  # noqa: E402
@@ -106,6 +110,8 @@ def score_split(
         leave_out_method=t["leave_out_method"],
         compressions=t["compressions"],
     )
+    if t.get("val", {}).get("sbi_fakes", False):
+        df = add_sbi_copies(df, t["seed"])
     device = next(model.parameters()).device
     frames = predict_frames(
         model, _loader(df, root, batch_size, num_workers), device, bf16=device.type == "cuda"

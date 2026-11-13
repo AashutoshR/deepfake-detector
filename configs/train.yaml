@@ -31,6 +31,7 @@ leave_out_method: null       # e.g. Deepfakes for M5 (FR-T5)
 val:
   frames_per_video: 8        # fewer frames per video keeps validation quick
   video_score: mean
+  sbi_fakes: false           # true for real-only data (FFHQ preview): fixed self-blended fakes
 
 checkpoint:
   every_minutes: 30          # laptop: short intervals so throttling or sleep costs little
