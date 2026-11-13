@@ -174,7 +174,7 @@ def index_folders(root: str | Path, dataset: str, split: str = "test") -> list[V
     """
     root = Path(root)
     records: list[VideoRecord] = []
-    for p in _media_items(root / "real"):
+    for p in _media_items(root / "real") if (root / "real").exists() else []:
         vid = p.relative_to(root).with_suffix("").as_posix()
         records.append(
             VideoRecord(p, vid, REAL, "real", dataset, split, "na", (f"{dataset}:{vid}",))

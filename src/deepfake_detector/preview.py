@@ -294,10 +294,10 @@ def preview_markdown(r: dict[str, Any]) -> str:
     lo, hi = r["bands"]
     held = r.get("held_out_method")
     out = [
-        "# Preview model\n",
-        f"{r['note']}\n",
+        "# Preview model\n\n",
+        f"{r['note']}\n\n",
         f"Checkpoint: `{r['checkpoint']}`; temperature {r['temperature']:.3f}; bands: likely "
-        f"real below {lo:.3f}, likely manipulated above {hi:.3f}.\n",
+        f"real below {lo:.3f}, likely manipulated above {hi:.3f}.\n\n",
         f"Held-out test: {r['test_photos']} real photos of people the model never trained on, "
         "each against every kind of fake below.",
     ]

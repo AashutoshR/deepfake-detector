@@ -78,3 +78,11 @@ def test_teach_learns_marked_examples(
 
     strict = teach_mod.teach(checkpoint, tmp_path, epochs=1, repeats=1, n_replay=4, max_drop=-1.0)
     assert not strict["kept"] and not (out / "best.pt").exists()
+
+
+def test_index_folders_with_only_fakes(tmp_path: Path) -> None:
+    from deepfake_detector.data.indexers import index_folders
+
+    save_example(b"img", ".png", "fake", tmp_path)
+    recs = index_folders(tmp_path, "feedback", split="train")
+    assert [(r.label, r.method) for r in recs] == [(1, "user")]

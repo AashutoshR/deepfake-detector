@@ -176,7 +176,15 @@ python -m deepfake_detector.preview all --source dff --every 6 --epochs 8
 
 `--every 6` keeps one person in six (about 15,000 images to crop). The model trains on the face swaps
 and inpaintings plus self-blended fakes, splits by person, and keeps the text-to-image fakes
-unseen as a cross-generator test; results go to `runs/preview_dff/PREVIEW.md`. It is still a
+unseen as a cross-generator test; results go to `runs/preview_dff/PREVIEW.md`. Results on 302 held-out real photos (people never seen in training) against each kind of fake:
+
+| Fakes | AUC | EER | Accuracy |
+|---|---|---|---|
+| InsightFace face swap | 0.987 | 0.066 | 0.932 |
+| Stable Diffusion inpainting | 0.983 | 0.062 | 0.929 |
+| Text-to-image (never seen in training) | 0.928 | 0.161 | 0.850 |
+
+It is still a
 preview: it has not been tested on a video deepfake benchmark, and polished or heavily
 re-encoded deepfakes can still get past it. The demo therefore reports a low score as "No
 manipulation detected", never as "real".
