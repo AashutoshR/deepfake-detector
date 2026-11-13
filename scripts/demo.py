@@ -50,7 +50,9 @@ def main() -> int:
 
     from deepfake_detector.predict import Predictor
 
-    app = create_app(Predictor(ckpt))  # load before serving so the first upload is quick
+    predictor = Predictor(ckpt)  # load before serving so the first upload is quick
+    predictor.warm_up()
+    app = create_app(predictor)
     if not args.no_browser:
         threading.Timer(1.0, webbrowser.open, args=(url,)).start()
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")

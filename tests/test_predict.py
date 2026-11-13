@@ -110,6 +110,10 @@ def test_predict_video(predictor: Predictor, tmp_path: Path) -> None:
     assert predictor.calibrated
 
 
+def test_warm_up_runs(predictor: Predictor) -> None:
+    predictor.warm_up()
+
+
 def test_predict_image_and_no_face(checkpoint: Path, tmp_path: Path) -> None:
     img = tmp_path / "x.png"
     cv2.imwrite(str(img), np.full((120, 160, 3), 90, np.uint8))

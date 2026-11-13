@@ -123,6 +123,17 @@ class Predictor:
             detector = SFDDetector(device=self.device.type)
         self.detector = detector
 
+    @torch.no_grad()
+    def warm_up(self) -> None:
+        """Run the detector and model once so the first real request is not slow (GPU kernels
+        are picked on first use)."""
+        self.detector.detect(np.full((self.size * 2, self.size * 2, 3), 128, np.uint8))
+        x = torch.zeros(1, 3, self.size, self.size, device=self.device)
+        with torch.autocast(
+            self.device.type, dtype=torch.bfloat16, enabled=self.device.type == "cuda"
+        ):
+            self.model(x)
+
     @property
     def cutoffs(self) -> BandCutoffs:
         c = self.calibration
