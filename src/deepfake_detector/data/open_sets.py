@@ -125,8 +125,10 @@ def fetch_wilddeepfake(raw: Path, frames: int = 6, workers: int = 4) -> int:
         if len(parts) != 3 or not name.endswith(".tar.gz"):
             continue
         kind, _, split = parts[1].partition("_")
-        marker = done_dir / f"{clean(parts[1])}_{clean(parts[2].split('.')[0])}"
-        if not marker.exists():
+        base = f"{clean(parts[1])}_{clean(parts[2].split('.')[0])}"
+        marker = done_dir / f"{base}_f{frames}"
+        legacy = frames == 6 and (done_dir / base).exists()  # first import kept 6 frames
+        if not marker.exists() and not legacy:
             todo.append((name, split, kind, marker))
     log.info("WildDeepfake: %d archives to fetch", len(todo))
 

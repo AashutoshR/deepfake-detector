@@ -11,7 +11,15 @@ import pandas as pd
 from deepfake_detector.data.datasets import dataset_names, load_manifests
 from deepfake_detector.data.indexers import INDEXERS, index_openforensics, index_wilddeepfake
 from deepfake_detector.data.open_sets import crop_box, unpack_openforensics, unpack_wdf_tar
-from deepfake_detector.open_model import DATASETS, OPEN_NOTE, model_markdown, train_overrides
+from deepfake_detector.open_model import (
+    DATASETS,
+    OPEN_NOTE,
+    RECIPES,
+    decision_metrics,
+    model_markdown,
+    person_kept,
+    train_overrides,
+)
 from deepfake_detector.train import load_config
 
 
@@ -109,9 +117,32 @@ def test_open_model_config_and_report() -> None:
     t = load_config(overrides=train_overrides(3, "o")).train
     assert list(t.dataset) == list(DATASETS) and t.sbi.enabled and not t.sbi.only
     assert t.leave_out_method is None and t.epochs == 3
-    m = {"video_auc": 0.9, "video_eer": 0.1, "video_acc": 0.8, "video_ece": 0.05, "n_videos": 4.0}
+    cfg = load_config(overrides=train_overrides(2, "v", RECIPES["v2"]))
+    assert "ffhq" in list(cfg.train.dataset) and cfg.train.samples_per_epoch == 200_000
+    assert list(cfg.model.finetune.lora.target_modules) == ["qkv", "attn.proj", "fc1", "fc2"]
+    m = {"video_auc": 0.9, "video_eer": 0.1}
+    bands = {"precision": 0.95, "recall": 0.8, "false_alarm_rate": 0.02, "missed_rate": 0.1,
+             "uncertain_rate": 0.1}  # fmt: skip
     md = model_markdown(
         {"checkpoint": "c", "temperature": 1.0, "bands": [0.3, 0.7], "note": OPEN_NOTE,
-         "test": {"wilddeepfake": {"all": m}}}
+         "test": {"wilddeepfake": {"all": m, "bands": bands, "items": 4},
+                  "ffhq": {"bands": bands, "items": 9}},
+         "compare": {"open_v1": {"wilddeepfake": {"all": m, "bands": bands, "items": 4}}}}
     )  # fmt: skip
-    assert "| wilddeepfake | all | 0.9000 |" in md and chr(0x2014) not in md
+    assert "| wilddeepfake | all | 0.9000 | 0.1000 | 0.950 | 0.800 | 0.020 |" in md
+    assert "| ffhq | (real only) |" in md and "earlier model `open_v1`" in md
+    assert chr(0x2014) not in md
+
+
+def test_decision_metrics_reads_the_bands() -> None:
+    videos = pd.DataFrame({"label": [1, 1, 1, 0, 0, 0], "score": [0.9, 0.5, 0.1, 0.95, 0.2, 0.1]})
+    d = decision_metrics(videos, lo=0.3, hi=0.7)
+    assert d["precision"] == 0.5 and d["recall"] == 1 / 3 and d["false_alarm_rate"] == 1 / 3
+    assert d["missed_rate"] == 1 / 3 and d["uncertain_rate"] == 1 / 6
+
+
+def test_person_kept() -> None:
+    from deepfake_detector.data.indexers import VideoRecord
+
+    rec = VideoRecord(Path("x"), "v", 0, "real", "dff", "train", "na", ("dff:25",))
+    assert person_kept(rec, 1) and not person_kept(rec, 3)

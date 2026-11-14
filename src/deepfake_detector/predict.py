@@ -115,11 +115,11 @@ class Predictor:
         from deepfake_detector.open_model import DATASETS, OPEN_NOTE
         from deepfake_detector.preview import NOTES
 
-        notes = {**NOTES, "+".join(DATASETS): OPEN_NOTE}
         trained_on = cfg.get("train", {}).get("dataset", "")
-        self.model_note: str | None = notes.get(
-            trained_on if isinstance(trained_on, str) else "+".join(trained_on)
-        )
+        if isinstance(trained_on, str):
+            self.model_note: str | None = NOTES.get(trained_on)
+        else:  # several datasets: the open-data models
+            self.model_note = OPEN_NOTE if set(DATASETS[:2]) <= set(trained_on) else None
         taught = cfg.get("train", {}).get("taught")
         if taught:
             self.model_note = (self.model_note or "") + (
