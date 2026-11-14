@@ -205,6 +205,28 @@ model does not forget it. The copy is kept only if validation AUC drops by at mo
 is recalibrated before use. A model taught on a few files learns those files: it will catch the
 same video again, but that says nothing about other deepfakes.
 
+### Open-data model (the model the app uses until FF++ arrives)
+
+Trained on every openly licensed deepfake set that needs no access request: DeepFakeFace
+(OpenRAIL), OpenForensics (CC BY 4.0) and WildDeepfake (Apache-2.0), plus self-blended fakes;
+108,761 training face crops.
+
+```bash
+python -m deepfake_detector.open_model all --epochs 10     # about 8 h on a laptop RTX 4060
+```
+
+Held-out test splits (people or source videos never used in training):
+
+| Test set | AUC | EER | Accuracy | Items |
+|---|---|---|---|---|
+| DeepFakeFace (swap, inpainting, text-to-image) | 0.994 | 0.037 | 0.969 | 1,934 photos |
+| OpenForensics (in-the-wild GAN face swaps) | 0.997 | 0.021 | 0.973 | 16,114 faces |
+| WildDeepfake (internet videos) | 0.947 | 0.115 | 0.880 | 806 face sequences |
+
+On 200 FFHQ photos, a real-face source it never saw, 6 (3%) were flagged as manipulated. A
+polished celebrity deepfake from social media scored 45% (not detected) until it was marked
+in the demo and taught; `runs/open_v1/MODEL.md` has the full table.
+
 ## Release
 
 ```bash

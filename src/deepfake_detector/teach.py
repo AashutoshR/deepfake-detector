@@ -14,7 +14,7 @@ A model taught on a few examples will learn those examples. That is useful for c
 same video again, but it is not evidence that it now catches deepfakes in general: only a
 held-out benchmark can show that.
 
-    python -m deepfake_detector.teach                      # base: runs/preview_dff/best.pt
+    python -m deepfake_detector.teach                      # base: runs/open_v1/best.pt
     python -m deepfake_detector.teach --base runs/<run>/best.pt --epochs 3
 """
 
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 FEEDBACK_ROOT = Path("data/feedback")
 LABEL_DIRS = {"real": Path("real"), "fake": Path("fake") / "user"}
-DEFAULT_BASE = Path("runs/preview_dff/best.pt")
+DEFAULT_BASE = Path("runs/open_v1/best.pt")
 
 
 # ----------------------------------------------------------------------------- saving examples

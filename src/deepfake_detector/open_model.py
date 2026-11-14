@@ -146,7 +146,8 @@ def model_markdown(r: dict[str, Any]) -> str:
         "|---|---|---|---|---|---|---|\n",
     ]
     for name, entry in r["test"].items():
-        for kind, m in entry.items():
+        kinds = entry if len(entry) > 2 else {"all": entry["all"]}  # one fake kind: same as all
+        for kind, m in kinds.items():
             lines.append(
                 f"| {name} | {kind} | {m['video_auc']:.4f} | {m['video_eer']:.4f} | "
                 f"{m['video_acc']:.4f} | {m['video_ece']:.4f} | {int(m['n_videos'])} |\n"
