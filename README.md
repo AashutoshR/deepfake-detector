@@ -196,8 +196,8 @@ real") save that one file under `data/feedback/` on this computer; nothing is sa
 click. Then:
 
 ```bash
-python -m deepfake_detector.teach            # fine-tunes a copy of runs/preview_dff/best.pt
-python scripts/demo.py                       # picks up runs/preview_dff_taught/best.pt
+python -m deepfake_detector.teach            # fine-tunes a copy of runs/open_v2/best.pt
+python scripts/demo.py                       # picks up runs/open_v2_taught/best.pt
 ```
 
 The marked examples are repeated and mixed with a sample of the original training data so the
@@ -208,24 +208,35 @@ same video again, but that says nothing about other deepfakes.
 ### Open-data model (the model the app uses until FF++ arrives)
 
 Trained on every openly licensed deepfake set that needs no access request: DeepFakeFace
-(OpenRAIL), OpenForensics (CC BY 4.0) and WildDeepfake (Apache-2.0), plus self-blended fakes;
-108,761 training face crops.
+(OpenRAIL), OpenForensics (CC BY 4.0) and WildDeepfake (Apache-2.0), plus FFHQ real photos and
+self-blended fakes. Version 2 uses all of DeepFakeFace and OpenForensics, 12 frames per
+WildDeepfake sequence (297,576 training face crops, 2.7x version 1) and LoRA on the attention
+and MLP layers (2.36M trainable parameters, 4x version 1).
 
 ```bash
-python -m deepfake_detector.open_model all --epochs 10     # about 8 h on a laptop RTX 4060
+python -m deepfake_detector.open_model all --recipe v2 --compare open_v1   # about 12 h on a laptop RTX 4060
 ```
 
-Held-out test splits (people or source videos never used in training):
+Held-out test splits (people or source videos never used in training). Precision, recall and
+false alarms are read at the cut-offs the app shows ("likely manipulated" counts as flagged):
 
-| Test set | AUC | EER | Accuracy | Items |
-|---|---|---|---|---|
-| DeepFakeFace (swap, inpainting, text-to-image) | 0.994 | 0.037 | 0.969 | 1,934 photos |
-| OpenForensics (in-the-wild GAN face swaps) | 0.997 | 0.021 | 0.973 | 16,114 faces |
-| WildDeepfake (internet videos) | 0.947 | 0.115 | 0.880 | 806 face sequences |
+| Test set | Model | AUC | Precision | Recall | False alarms | Items |
+|---|---|---|---|---|---|---|
+| DeepFakeFace (swap, inpainting, text-to-image) | v1 | 0.994 | 0.996 | 0.940 | 1.1% | 5,882 photos |
+| | v2 | 0.998 | 0.996 | 0.977 | 1.3% | |
+| OpenForensics (in-the-wild GAN face swaps) | v1 | 0.997 | 0.989 | 0.968 | 1.4% | 16,114 faces |
+| | v2 | 0.999 | 0.995 | 0.987 | 0.7% | |
+| WildDeepfake (internet videos) | v1 | 0.951 | 0.981 | 0.624 | 1.3% | 806 face sequences |
+| | v2 | 0.950 | 0.969 | 0.695 | 2.3% | |
+| FFHQ real photos (held-out people) | v1 | | | | 3.0% | 400 photos |
+| | v2 | | | | 0.5% | |
 
-On 200 FFHQ photos, a real-face source it never saw, 6 (3%) were flagged as manipulated. A
-polished celebrity deepfake from social media scored 45% (not detected) until it was marked
-in the demo and taught; `runs/open_v1/MODEL.md` has the full table.
+Version 1 never saw FFHQ, so part of the FFHQ gain is version 2 having trained on other FFHQ
+photos. WildDeepfake (low-quality internet video) stays the hardest set: about 3 in 10 of its
+fakes are not flagged. The app runs `runs/open_v2_taught`, version 2 taught the examples marked
+in the demo (a celebrity deepfake from social media went from 4% to 99.5%); on the test sets
+above it keeps the same AUC within 0.001 and has fewer false alarms (0.4%, 0.5%, 1.8%, 0%).
+`runs/open_v2/MODEL.md` has the full table.
 
 ## Release
 
