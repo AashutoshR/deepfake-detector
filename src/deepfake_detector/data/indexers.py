@@ -287,22 +287,34 @@ def index_openforensics(root: str | Path) -> list[VideoRecord]:
     return records
 
 
-def index_split_folders(root: str | Path, dataset: str) -> list[VideoRecord]:
+def split_by_person(person: str) -> str:
+    """Stable 80/10/10 train/val/test split from a hash of the person id."""
+    return {0: "test", 1: "val"}.get(zlib.crc32(person.encode()) % 10, "train")
+
+
+def index_split_folders(
+    root: str | Path, dataset: str, resplit: bool = False
+) -> list[VideoRecord]:
     """Image sets made by data/open_sets.py with their own splits (OpenFake, Seq-DeepFake).
 
     Layout: {train,val,test}/{real,fake}/<method>__<person>[__<extra>].jpg. Fakes take their
     method (generator or edit type) from the file name; files that share <person> share a
     person id.
+
+    resplit: ignore the published split and split by person instead. Seq-DeepFake's official
+    splits reuse the same source face in train and test (with different edits), which would
+    let a model be tested on faces it trained on.
     """
     root = Path(root)
     records = []
-    for split in ("train", "val", "test"):
+    for folder in ("train", "val", "test"):
         for kind, label in (("real", REAL), ("fake", FAKE)):
-            for p in sorted((root / split / kind).glob("*.jpg")):
+            for p in sorted((root / folder / kind).glob("*.jpg")):
                 method, _, rest = p.stem.partition("__")
                 person = rest.split("__")[0] or p.stem
+                split = split_by_person(person) if resplit else folder
                 records.append(
-                    VideoRecord(p, f"{dataset}/{split}/{kind}/{p.stem}", label,
+                    VideoRecord(p, f"{dataset}/{folder}/{kind}/{p.stem}", label,
                                 "real" if label == REAL else method, dataset, split, "na",
                                 (f"{dataset}:{person}",))
                 )  # fmt: skip
@@ -321,5 +333,5 @@ INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "dff": index_dff,
     "openfake": lambda root: index_split_folders(root, "openfake"),
     "openfake_reddit": lambda root: index_split_folders(root, "openfake_reddit"),
-    "seqdeepfake": lambda root: index_split_folders(root, "seqdeepfake"),
+    "seqdeepfake": lambda root: index_split_folders(root, "seqdeepfake", resplit=True),
 }

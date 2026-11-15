@@ -183,10 +183,13 @@ def test_unpack_seqdf_zip_reads_original_as_real(tmp_path: Path) -> None:
         zf.writestr("test/notes.txt", b"x")
     out = tmp_path / "sd"
     assert unpack_seqdf_zip(zp, out, "test", "facial_components") == 2
+    assert unpack_seqdf_zip(zp, out, "train", "facial_attributes") == 2  # same face, other split
     recs = INDEXERS["seqdeepfake"](out)
-    assert {(r.label, r.method, r.split) for r in recs} == {(0, "real", "test"),
-                                                           (1, "components", "test")}  # fmt: skip
+    assert {(r.label, r.method) for r in recs} == {(0, "real"), (1, "components"),
+                                                  (1, "attributes")}  # fmt: skip
     assert {r.persons for r in recs} == {("seqdeepfake:105398",)}
+    assert len({r.split for r in recs}) == 1  # one face, one split, whatever the folders say
+    assert len({r.video_id for r in recs}) == 4
     assert spaced(list("abcdefghij"), 3) == ["a", "e", "j"] and spaced(["a"], 3) == ["a"]
 
 
