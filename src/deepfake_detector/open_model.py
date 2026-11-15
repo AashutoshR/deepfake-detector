@@ -9,11 +9,11 @@ plus self-blended fakes made from the real faces during training.
 
 Steps (each can be rerun; finished work is skipped):
 
-    python -m deepfake_detector.open_model all --recipe v2
-    python -m deepfake_detector.open_model fetch --recipe v2       # WildDeepfake, OpenForensics
-    python -m deepfake_detector.open_model preprocess --recipe v2  # face crops
-    python -m deepfake_detector.open_model train --recipe v2
-    python -m deepfake_detector.open_model finish --recipe v2 --compare open_v1
+    python -m deepfake_detector.open_model all --recipe v3 --compare open_v2
+    python -m deepfake_detector.open_model fetch --recipe v3       # downloads and imports
+    python -m deepfake_detector.open_model preprocess --recipe v3  # face crops
+    python -m deepfake_detector.open_model train --recipe v3
+    python -m deepfake_detector.open_model finish --recipe v3 --compare open_v2
 """
 
 from __future__ import annotations
@@ -33,9 +33,10 @@ log = logging.getLogger(__name__)
 DATASETS = ("dff", "openforensics", "wilddeepfake")
 RUN_NAME = "open_v1"
 OPEN_NOTE = (
-    "Trained on openly licensed data: DeepFakeFace, OpenForensics and WildDeepfake, plus "
-    "self-blended fakes. Not yet trained or tested on FaceForensics++ or Celeb-DF. A low score "
-    "means this model found nothing, not that the media is real."
+    "Trained on openly licensed data: DeepFakeFace, OpenForensics and WildDeepfake (from v3 also "
+    "OpenFake and Seq-DeepFake), plus self-blended fakes. Not yet trained or tested on "
+    "FaceForensics++ or Celeb-DF. A low score means this model found nothing, not that the "
+    "media is real."
 )
 
 
@@ -51,6 +52,7 @@ class Recipe:
     lora_targets: tuple[str, ...] = ("qkv",)
     epochs: int = 10
     samples_per_epoch: int | None = None
+    test_only: tuple[str, ...] = ()  # cropped and tested, never trained or calibrated on
 
 
 RECIPES = {
@@ -67,21 +69,44 @@ RECIPES = {
         epochs=8,
         samples_per_epoch=200_000,
     ),
+    # v3: v2 plus OpenFake (people made by current image and video generators, and AI images
+    # posted on Reddit) and Seq-DeepFake (step-by-step face edits). OpenFake's Reddit test set,
+    # with real Reddit photos, is held out entirely as an in-the-wild check.
+    "v3": Recipe(
+        "open_v3",
+        ("dff", "openforensics", "wilddeepfake_f12", "ffhq", "openfake", "seqdeepfake"),
+        1,
+        {"train": 1, "val": 1, "test": 3},
+        wdf_frames=12,
+        lora_targets=("qkv", "attn.proj", "fc1", "fc2"),
+        epochs=8,
+        samples_per_epoch=240_000,
+        test_only=("openfake_reddit",),
+    ),
 }
 
 
 def fetch(raw: Path, downloads: Path, r: Recipe) -> None:
-    from deepfake_detector.data.open_sets import fetch_wilddeepfake, import_openforensics
+    from deepfake_detector.data.open_sets import (
+        fetch_openfake,
+        fetch_seqdeepfake,
+        fetch_wilddeepfake,
+        import_openforensics,
+    )
 
     import_openforensics(downloads, raw, r.of_every)
     fetch_wilddeepfake(raw, r.wdf_frames)
+    if "openfake" in r.datasets:
+        fetch_openfake(raw)
+    if "seqdeepfake" in r.datasets:
+        fetch_seqdeepfake(raw)
 
 
 def preprocess(raw: Path, data_root: Path, r: Recipe, workers: int = 2) -> None:
     from deepfake_detector.data.indexers import INDEXERS
     from deepfake_detector.data.preprocess import finalize, run
 
-    for name in r.datasets:
+    for name in (*r.datasets, *r.test_only):
         source = "wilddeepfake" if name.startswith("wilddeepfake") else name
         records = INDEXERS[source](raw / source)
         if source == "dff":  # every DeepFakeFace kind, text-to-image too, is trained on here
@@ -206,14 +231,14 @@ def finish(r: Recipe, compare_with: tuple[str, ...] = ()) -> dict[str, Any]:
         "temperature": cal.temperature,
         "bands": [cal.likely_real_below, cal.likely_fake_above],
         "val": summarize(val.assign(prob=cal.apply(val["logit"].to_numpy())), how=how),
-        "test": score_sets(ckpt, r.datasets),
+        "test": score_sets(ckpt, (*r.datasets, *r.test_only)),
         "note": OPEN_NOTE,
         "compare": {},
     }
     for other in compare_with:
         other_ckpt = Path("runs") / other / "best.pt"
         if other_ckpt.exists():
-            report["compare"][other] = score_sets(other_ckpt, r.datasets)
+            report["compare"][other] = score_sets(other_ckpt, (*r.datasets, *r.test_only))
     (ckpt.parent / "results.json").write_text(json.dumps(report, indent=2))
     (ckpt.parent / "MODEL.md").write_text(model_markdown(report))
     log.info("test: %s", {k: v.get("all", {}).get("video_auc") for k, v in report["test"].items()})
@@ -266,7 +291,7 @@ def model_markdown(r: dict[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("step", choices=["all", "fetch", "preprocess", "train", "finish"])
-    p.add_argument("--recipe", choices=sorted(RECIPES), default="v1")
+    p.add_argument("--recipe", choices=sorted(RECIPES), default="v3")
     p.add_argument("--raw", type=Path, default=Path("data/raw"))
     p.add_argument("--data", type=Path, default=Path("data"))
     p.add_argument("--downloads", type=Path, default=Path("data/downloads/openforensics"))

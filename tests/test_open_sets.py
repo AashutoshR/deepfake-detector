@@ -141,6 +141,62 @@ def test_decision_metrics_reads_the_bands() -> None:
     assert d["missed_rate"] == 1 / 3 and d["uncertain_rate"] == 1 / 6
 
 
+def test_unpack_openfake_keeps_people_and_skips_nsfw_and_repeats(tmp_path: Path) -> None:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from deepfake_detector.data.open_sets import unpack_openfake_parquet
+
+    png = _png(0, 32)
+    rows = [
+        ("fake", "gpt-image.1.5", "A woman smiling at the camera", "aa11", "0.01"),
+        ("real", "docci", "Portrait of an old man", "bb22", "0.0"),
+        ("fake", "flux", "A green snake on a branch", "cc33", "0.0"),  # no person
+        ("fake", "flux", "A man on stage", "dd44", "0.9"),  # NSFW score
+        ("fake", "flux", "A man on stage", "aa11", "0.0"),  # same image as the first
+        ("maybe", "flux", "A man", "ee55", "0.0"),
+    ]
+    table = pa.table({
+        "image": [{"bytes": png, "path": None} for _ in rows],
+        "label": [r[0] for r in rows], "model": [r[1] for r in rows],
+        "prompt": [r[2] for r in rows], "image_sha256": [r[3] for r in rows],
+        "nsfw_score": [r[4] for r in rows],
+    })  # fmt: skip
+    pq.write_table(table, tmp_path / "s.parquet", row_group_size=2)
+    out = tmp_path / "of"
+    assert unpack_openfake_parquet(tmp_path / "s.parquet", out, "train") == 2
+    assert [p.name for p in (out / "train" / "fake").iterdir()] == ["gpt-image-1-5__aa11.jpg"]
+    assert [p.name for p in (out / "train" / "real").iterdir()] == ["docci__bb22.jpg"]
+    recs = INDEXERS["openfake"](out)
+    assert {(r.label, r.method, r.persons) for r in recs} == {
+        (1, "gpt-image-1-5", ("openfake:aa11",)), (0, "real", ("openfake:bb22",))}  # fmt: skip
+
+
+def test_unpack_seqdf_zip_reads_original_as_real(tmp_path: Path) -> None:
+    from deepfake_detector.data.open_sets import spaced, unpack_seqdf_zip
+
+    zp = tmp_path / "test.zip"
+    with zipfile.ZipFile(zp, "w") as zf:
+        zf.writestr("test/original/105398.png", _png(1))
+        zf.writestr("test/hair-nose-lip-eye/105398.jpg", _png(2))
+        zf.writestr("__MACOSX/test/original/._105398.png", b"x")
+        zf.writestr("test/notes.txt", b"x")
+    out = tmp_path / "sd"
+    assert unpack_seqdf_zip(zp, out, "test", "facial_components") == 2
+    recs = INDEXERS["seqdeepfake"](out)
+    assert {(r.label, r.method, r.split) for r in recs} == {(0, "real", "test"),
+                                                           (1, "components", "test")}  # fmt: skip
+    assert {r.persons for r in recs} == {("seqdeepfake:105398",)}
+    assert spaced(list("abcdefghij"), 3) == ["a", "e", "j"] and spaced(["a"], 3) == ["a"]
+
+
+def test_v3_recipe_tests_reddit_without_training_on_it() -> None:
+    r = RECIPES["v3"]
+    assert "openfake_reddit" in r.test_only and "openfake_reddit" not in r.datasets
+    t = load_config(overrides=train_overrides(1, "v3", r)).train
+    assert "openfake_reddit" not in list(t.dataset) and "seqdeepfake" in list(t.dataset)
+
+
 def test_person_kept() -> None:
     from deepfake_detector.data.indexers import VideoRecord
 

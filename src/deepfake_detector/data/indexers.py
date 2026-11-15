@@ -287,6 +287,28 @@ def index_openforensics(root: str | Path) -> list[VideoRecord]:
     return records
 
 
+def index_split_folders(root: str | Path, dataset: str) -> list[VideoRecord]:
+    """Image sets made by data/open_sets.py with their own splits (OpenFake, Seq-DeepFake).
+
+    Layout: {train,val,test}/{real,fake}/<method>__<person>[__<extra>].jpg. Fakes take their
+    method (generator or edit type) from the file name; files that share <person> share a
+    person id.
+    """
+    root = Path(root)
+    records = []
+    for split in ("train", "val", "test"):
+        for kind, label in (("real", REAL), ("fake", FAKE)):
+            for p in sorted((root / split / kind).glob("*.jpg")):
+                method, _, rest = p.stem.partition("__")
+                person = rest.split("__")[0] or p.stem
+                records.append(
+                    VideoRecord(p, f"{dataset}/{split}/{kind}/{p.stem}", label,
+                                "real" if label == REAL else method, dataset, split, "na",
+                                (f"{dataset}:{person}",))
+                )  # fmt: skip
+    return records
+
+
 INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "ffpp": index_ffpp,
     "celebdf_v2": index_celebdf,
@@ -297,4 +319,7 @@ INDEXERS: dict[str, Callable[..., list[VideoRecord]]] = {
     "df40": lambda root: index_folders(root, "df40"),
     "ffhq": index_ffhq,
     "dff": index_dff,
+    "openfake": lambda root: index_split_folders(root, "openfake"),
+    "openfake_reddit": lambda root: index_split_folders(root, "openfake_reddit"),
+    "seqdeepfake": lambda root: index_split_folders(root, "seqdeepfake"),
 }
