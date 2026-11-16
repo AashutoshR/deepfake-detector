@@ -196,25 +196,34 @@ real") save that one file under `data/feedback/` on this computer; nothing is sa
 click. Then:
 
 ```bash
-python -m deepfake_detector.teach            # fine-tunes a copy of runs/open_v2/best.pt
-python scripts/demo.py                       # picks up runs/open_v2_taught/best.pt
+python -m deepfake_detector.teach            # fine-tunes a copy of runs/open_v3/best.pt
+python scripts/demo.py --checkpoint runs/open_v3_taught/best.pt
 ```
 
 The marked examples are repeated and mixed with a sample of the original training data so the
 model does not forget it. The copy is kept only if validation AUC drops by at most 0.01, and it
 is recalibrated before use. A model taught on a few files learns those files: it will catch the
-same video again, but that says nothing about other deepfakes.
+same video again, but that says nothing about other deepfakes. Check the taught copy on the
+test sets before using it: taught on 1 fake and 5 real examples, version 3 caught the fake
+(19% to 85 to 99%) but lost recall on held-out Reddit fakes (77% to 59 to 72%), so the app runs
+the untaught version 3.
 
 ### Open-data model (the model the app uses until FF++ arrives)
 
 Trained on every openly licensed deepfake set that needs no access request: DeepFakeFace
-(OpenRAIL), OpenForensics (CC BY 4.0) and WildDeepfake (Apache-2.0), plus FFHQ real photos and
-self-blended fakes. Version 2 uses all of DeepFakeFace and OpenForensics, 12 frames per
-WildDeepfake sequence (297,576 training face crops, 2.7x version 1) and LoRA on the attention
-and MLP layers (2.36M trainable parameters, 4x version 1).
+(OpenRAIL), OpenForensics (CC BY 4.0), WildDeepfake (Apache-2.0), OpenFake (CC BY-NC 4.0) and
+Seq-DeepFake (Apache-2.0), plus FFHQ real photos and self-blended fakes.
+
+- Version 2: all of DeepFakeFace and OpenForensics, 12 frames per WildDeepfake sequence
+  (297,576 training face crops) and LoRA on the attention and MLP layers (2.36M trainable).
+- Version 3 (the app's model): version 2 plus OpenFake person images from current generators
+  (GPT-image, Midjourney 7, Flux, Imagen, Sora and Veo frames, Seedream and more) and AI images
+  posted on Reddit, and Seq-DeepFake step-by-step face edits; 381,604 training face crops.
+  OpenFake's Reddit test set, AI images and real photos posted on Reddit, is never trained on.
+  Seq-DeepFake is split by face, because its published splits reuse faces across train and test.
 
 ```bash
-python -m deepfake_detector.open_model all --recipe v2 --compare open_v1   # about 12 h on a laptop RTX 4060
+python -m deepfake_detector.open_model all --recipe v3 --compare open_v2   # about 16 h on a laptop RTX 4060
 ```
 
 Held-out test splits (people or source videos never used in training). Precision, recall and
@@ -222,21 +231,26 @@ false alarms are read at the cut-offs the app shows ("likely manipulated" counts
 
 | Test set | Model | AUC | Precision | Recall | False alarms | Items |
 |---|---|---|---|---|---|---|
-| DeepFakeFace (swap, inpainting, text-to-image) | v1 | 0.994 | 0.996 | 0.940 | 1.1% | 5,882 photos |
-| | v2 | 0.998 | 0.996 | 0.977 | 1.3% | |
-| OpenForensics (in-the-wild GAN face swaps) | v1 | 0.997 | 0.989 | 0.968 | 1.4% | 16,114 faces |
-| | v2 | 0.999 | 0.995 | 0.987 | 0.7% | |
-| WildDeepfake (internet videos) | v1 | 0.951 | 0.981 | 0.624 | 1.3% | 806 face sequences |
-| | v2 | 0.950 | 0.969 | 0.695 | 2.3% | |
-| FFHQ real photos (held-out people) | v1 | | | | 3.0% | 400 photos |
-| | v2 | | | | 0.5% | |
+| Reddit posts, AI images and real photos (never trained on) | v2 | 0.577 | 0.922 | 0.080 | 5.3% | 6,172 images |
+| | v3 | 0.911 | 0.982 | 0.770 | 10.9% | |
+| OpenFake (current image and video generators) | v2 | 0.465 | 0.984 | 0.067 | 2.9% | 1,923 images |
+| | v3 | 0.766 | 0.994 | 0.434 | 7.2% | |
+| Seq-DeepFake (step-by-step face edits) | v2 | 0.807 | 0.999 | 0.274 | 0.6% | 8,672 photos |
+| | v3 | 0.994 | 0.999 | 0.957 | 3.2% | |
+| DeepFakeFace (swap, inpainting, text-to-image) | v2 | 0.998 | 0.996 | 0.977 | 1.3% | 5,882 photos |
+| | v3 | 0.997 | 0.997 | 0.965 | 0.9% | |
+| OpenForensics (in-the-wild GAN face swaps) | v2 | 0.999 | 0.995 | 0.987 | 0.7% | 16,114 faces |
+| | v3 | 0.999 | 0.994 | 0.982 | 0.8% | |
+| WildDeepfake (internet videos) | v2 | 0.950 | 0.969 | 0.695 | 2.3% | 806 face sequences |
+| | v3 | 0.948 | 0.965 | 0.676 | 2.5% | |
+| FFHQ real photos (held-out people) | v2 | | | | 0.5% | 400 photos |
+| | v3 | | | | 0.3% | |
 
-Version 1 never saw FFHQ, so part of the FFHQ gain is version 2 having trained on other FFHQ
-photos. WildDeepfake (low-quality internet video) stays the hardest set: about 3 in 10 of its
-fakes are not flagged. The app runs `runs/open_v2_taught`, version 2 taught the examples marked
-in the demo (a celebrity deepfake from social media went from 4% to 99.5%); on the test sets
-above it keeps the same AUC within 0.001 and has fewer false alarms (0.4%, 0.5%, 1.8%, 0%).
-`runs/open_v2/MODEL.md` has the full table.
+Version 3 catches 77% of the AI images posted on Reddit, where version 2 caught 8%, and is
+level with version 2 on the older sets. Its weak spots: about 1 in 9 real Reddit photos is
+flagged, generators such as Flux 2, Recraft and Ideogram are barely separated from real photos
+(AUC 0.53 to 0.76), and about 3 in 10 WildDeepfake fakes are not flagged.
+`runs/open_v3/MODEL.md` has the per-generator table.
 
 ## Release
 
