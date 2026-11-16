@@ -196,7 +196,7 @@ real") save that one file under `data/feedback/` on this computer; nothing is sa
 click. Then:
 
 ```bash
-python -m deepfake_detector.teach            # fine-tunes a copy of runs/open_v3/best.pt
+python -m deepfake_detector.teach --repeats 5 --epochs 2 --max-drop 0.003   # copy of runs/open_v3/best.pt
 python scripts/demo.py --checkpoint runs/open_v3_taught/best.pt
 ```
 
@@ -204,9 +204,10 @@ The marked examples are repeated and mixed with a sample of the original trainin
 model does not forget it. The copy is kept only if validation AUC drops by at most 0.01, and it
 is recalibrated before use. A model taught on a few files learns those files: it will catch the
 same video again, but that says nothing about other deepfakes. Check the taught copy on the
-test sets before using it: taught on 1 fake and 5 real examples, version 3 caught the fake
-(19% to 85 to 99%) but lost recall on held-out Reddit fakes (77% to 59 to 72%), so the app runs
-the untaught version 3.
+test sets before using it. Taught on 1 fake and 5 real examples with the default settings,
+version 3 caught the fake (19% to 99%) but caught only 59% of held-out Reddit fakes instead of
+77%. The gentler settings above give 85% on the fake and 72% on Reddit fakes (AUC 0.883 instead
+of 0.911); the app runs that gentler copy, `runs/open_v3_taught`.
 
 ### Open-data model (the model the app uses until FF++ arrives)
 
